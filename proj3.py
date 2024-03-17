@@ -181,6 +181,7 @@ class MapCoord:
         self.coord = coord
         self.cost_to_come = cost_to_come
         self.cost_to_go = cost_to_go
+        self.estimated_cost = self.cost_to_come+self.cost_to_go
         self.parent = parent
 
     def __lt__(self, other):
@@ -200,6 +201,7 @@ class MapCoord:
     
     def update(self, cost_to_come, parent):
         self.cost_to_come = cost_to_come
+        self.estimated_cost = self.cost_to_come+self.cost_to_go
         self.parent = parent
     
     @property
@@ -210,22 +212,28 @@ class MapCoord:
     def y(self):
         return self.coord[1]
     
-    @property
-    def estimated_cost(self):
-        return self.cost_to_come+self.cost_to_go
-    
-    @staticmethod
-    def calculate_cost_to_go(coord1, coord2):
-        """calculate the optimistic cost to go estimate
+def cost_to_go_l2(coord1, coord2):
+    """calculate the optimistic cost to go estimate
 
-        Args:
-            coord1 (_type_): _description_
-            coord2 (_type_): _description_
+    Args:
+        coord1 (_type_): _description_
+        coord2 (_type_): _description_
 
-        Returns:
-            _type_: _description_
-        """
-        return np.linalg.norm([coord1.x-coord2.x, coord1.y-coord2.y],ord=2)
+    Returns:
+        _type_: _description_
+    """
+    if isinstance(coord1,tuple):
+        x1,y1 = coord1
+    elif isinstance(coord1, MapCoord):
+        x1 = coord1.x
+        y1 = coord1.y
+
+    if isinstance(coord2,tuple):
+        x2,y2 = coord2
+    elif isinstance(coord2, MapCoord):
+        x2 = coord2.x
+        y2 = coord2.y
+    return np.linalg.norm([x1-x2, y1-y2],ord=2)
 
 class Astar:
     # implement the Astar search algorithm
@@ -236,8 +244,13 @@ class Astar:
                  map : Map,
                  savevid=False):
         
-        self.init_coord = MapCoord(init_coord, cost_to_come=0.0)
-        self.goal_coord = MapCoord(goal_coord, cost_to_come=np.inf)
+        self.init_coord = MapCoord(init_coord,
+                                   cost_to_come=0.0,
+                                   cost_to_go=cost_to_go_l2(init_coord,
+                                                            goal_coord))
+        self.goal_coord = MapCoord(goal_coord,
+                                   cost_to_come=np.inf,
+                                   cost_to_go=0.0)
         self.map = map
         self.savevid = savevid
 
@@ -327,6 +340,7 @@ class Astar:
         # create new MapCoord obj
         new_c = MapCoord(coord=coord,
                          cost_to_come=parent.cost_to_come+edge_cost,
+                         cost_to_go=cost_to_go_l2(coord,self.goal_coord),
                          parent=parent)
         
         # push to open list heaqp
@@ -386,7 +400,7 @@ class Astar:
             plt.pause(0.001)
         
         # add some more static frames with the robot at goal
-        for _ in range(20):
+        for _ in range(40):
             plt.pause(0.005)
             if self.savevid:
                 self.writer.grab_frame()
@@ -424,7 +438,7 @@ class Astar:
                 if self.closed_list[y][x] is not None:
                     continue
 
-                if self.open_list_added[y][x] is None: 
+                if self.open_list_added[y][x] is None:
                     # not added to the open list, do initialization first
                     self.initiate_coord(coord=(x,y),parent=c,edge_cost=cost)
                 else:
@@ -437,7 +451,7 @@ class Astar:
 
             # visualize the result at some fixed interval
             i+=1
-            if i%4000==0:
+            if i%1000==0:
                 self.visualize_search()
         
         if self.goal_reached:
