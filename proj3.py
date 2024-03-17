@@ -176,19 +176,21 @@ class MapCoord:
     def __init__(self,
                  coord,
                  cost_to_come,
+                 cost_to_go=None,
                  parent=None) -> None:
         self.coord = coord
         self.cost_to_come = cost_to_come
+        self.cost_to_go = cost_to_go
         self.parent = parent
 
     def __lt__(self, other):
-        return self.cost_to_come < other.cost_to_come
+        return self.estimated_cost < other.estimated_cost
     
     def __gt__(self, other):
-        return self.cost_to_come > other.cost_to_come
+        return self.estimated_cost > other.estimated_cost
     
     def __eq__(self, other):
-        return self.cost_to_come == other.cost_to_come
+        return self.estimated_cost == other.estimated_cost
     
     def set_parent(self, parent):
         self.parent = parent
@@ -207,9 +209,26 @@ class MapCoord:
     @property
     def y(self):
         return self.coord[1]
+    
+    @property
+    def estimated_cost(self):
+        return self.cost_to_come+self.cost_to_go
+    
+    @staticmethod
+    def calculate_cost_to_go(coord1, coord2):
+        """calculate the optimistic cost to go estimate
 
-class Dijkstra:
-    # implement the Dijkstra's search algorithm
+        Args:
+            coord1 (_type_): _description_
+            coord2 (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        return np.linalg.norm([coord1.x-coord2.x, coord1.y-coord2.y],ord=2)
+
+class Astar:
+    # implement the Astar search algorithm
 
     def __init__(self,
                  init_coord,
@@ -272,7 +291,7 @@ class Dijkstra:
 
         # create movie writer
         if self.savevid:
-            self.writer = FFMpegWriter(fps=15, metadata=dict(title='Dijkstra',
+            self.writer = FFMpegWriter(fps=15, metadata=dict(title='Astar',
                                                         artist='Matplotlib',
                                                         comment='Path search'))
             self.writer.setup(self.fig, outfile="./animation.mp4",dpi=72)
@@ -492,8 +511,8 @@ if __name__ == "__main__":
     init_coord = ask_for_coord(custom_map, mode="initial")
     goal_coord = ask_for_coord(custom_map, mode="goal")
 
-    # create Dijkstra solver
-    d = Dijkstra(init_coord=init_coord,goal_coord=goal_coord,map=custom_map,
+    # create Astar solver
+    d = Astar(init_coord=init_coord,goal_coord=goal_coord,map=custom_map,
                  savevid=savevid)
 
     # run the algorithm
