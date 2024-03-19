@@ -1,8 +1,44 @@
 import argparse
 import numpy as np
 import heapq
+import multiprocessing
 import matplotlib.pyplot as plt
 from matplotlib.animation import FFMpegWriter
+
+def within_obstacle(x, y, corners : np.ndarray, inflate_radius):
+    """check if (x, y) is within the obstacle defined by the corners
+
+    Args:
+        x (_type_): _description_
+        y (_type_): _description_
+        corners (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    out = True
+    n = corners.shape[0]
+    for i in range(n):
+        j = int((i+1)%n) # the adjacent corner index in clockwise direction
+
+        # get x, y
+        x1,y1 = corners[i,:]
+        x2,y2 = corners[j,:]
+
+        # get normal direction
+        normal_dir = np.arctan2(y2-y1, x2-x1) + np.pi/2
+        normal = np.array([np.cos(normal_dir),np.sin(normal_dir)])
+
+        # compute the projection of one of the corner point
+        p = np.inner((x1,y1),normal)
+
+        # find the meshgrid points whose projections are <= p
+        p_xy = np.inner((x,y), normal)
+
+        # if p_xy<self.inflate_radius is true for all edges, then x,y is
+        # within the obstacle
+        out = out&(p_xy<p+inflate_radius)
+    return out
 
 class Map:
     """class representing the map
@@ -26,6 +62,7 @@ class Map:
                                                            # 1: obstacle
         self.map_inflate = np.zeros_like(self.map)
         self.inflate_radius = inflate_radius
+        self.obstacle_corners = []
 
     def add_obstacle(self, corners : np.ndarray):
         """add obstacle defined by the corner points. the corners should define
@@ -50,6 +87,10 @@ class Map:
 
         if corners.shape[1] != 2:
             corners = corners.reshape((-1,2)) # make sure it's a 2D array
+
+        # add to the list of obstacle corners
+        self.obstacle_corners.append(corners)
+
         n = corners.shape[0]
         for i in range(corners.shape[0]):
             j = int((i+1)%n) # the adjacent corner index in clockwise direction
@@ -127,6 +168,32 @@ class Map:
                 return False
             else:
                 return True
+
+    def check_obstacle(self, x, y, pool=None):
+        """go through all obstacles to check if x,y is within any one of them
+
+        Args:
+            x (_type_): _description_
+            y (_type_): _description_
+        """
+        if pool is None:
+            for corners in self.obstacle_corners:
+                # returns true if within any obstacle
+                if within_obstacle(x,y,corners,self.inflate_radius):
+                    return True
+            return False
+        else:
+            nobs = len(self.obstacle_corners)
+            inputs = zip((x,)*nobs,
+                         (y,)*nobs,
+                         self.obstacle_corners,
+                         (self.inflate_radius,)*nobs)
+            outputs = pool.starmap(within_obstacle,inputs)
+
+            for out in outputs:
+                if out:
+                    return True
+            return False
     
     @staticmethod
     def get_corners_hex(center, radius):
@@ -166,8 +233,23 @@ class Map:
                            ])
         corners += np.array([upper_left[0],upper_left[1]])[np.newaxis,:]
         return corners
-        
-class MapCoord:
+
+def round_to_precision(data,
+                        precision=0.5):
+    """round the coordinate according to the requirement, e.g., 0.5
+
+    Args:
+        data (_type_): _description_
+        precision (float, optional): _description_. Defaults to 0.5.
+    """
+    if isinstance(data, tuple):
+        x_ = np.round(data[0]/0.5)*0.5
+        y_ = np.round(data[1]/0.5)*0.5
+        return (x_,y_)
+    else:
+        return np.round(data/0.5)*0.5
+
+class State:
     """create a custom class to represent each map coordinate.
     attribute cost_to_come is used as the value for heap actions.
     for this purpose, the <, > and = operations are overridden
@@ -175,10 +257,13 @@ class MapCoord:
     """
     def __init__(self,
                  coord,
+                 orientation,
                  cost_to_come,
                  cost_to_go=None,
                  parent=None) -> None:
-        self.coord = coord
+        self.coord = round_to_precision(coord)
+        # orientation: discrete value for this problem, i.e., 30, 60 etc
+        self.orientation = orientation
         self.cost_to_come = cost_to_come
         self.cost_to_go = cost_to_go
         self.estimated_cost = self.cost_to_come+self.cost_to_go
@@ -196,8 +281,15 @@ class MapCoord:
     def set_parent(self, parent):
         self.parent = parent
 
-    def same_coord(self, other):
-        return self.coord == other.coord
+    def same_state_as(self, other, ignore_ori=False):
+        dx = self.x-other.x
+        dy = self.y-other.y
+
+        if not ignore_ori:
+            return (np.linalg.norm((dx,dy))<1.5) & \
+                (np.abs(self.orientation-other.orientation) < 1e-8)
+        else:
+            return np.linalg.norm((dx,dy))<1e-3
     
     def update(self, cost_to_come, parent):
         self.cost_to_come = cost_to_come
@@ -212,73 +304,124 @@ class MapCoord:
     def y(self):
         return self.coord[1]
     
-def cost_to_go_l2(coord1, coord2):
+    @property
+    def index(self):
+        ideg = int(self.orientation/30)
+        iw = int(self.x/0.5)
+        ih = int(self.y/0.5)
+        return ideg, ih, iw
+    
+def cost_to_go_l2(state1, state2):
     """calculate the optimistic cost to go estimate
 
     Args:
-        coord1 (_type_): _description_
-        coord2 (_type_): _description_
+        state1 (_type_): _description_
+        state2 (_type_): _description_
 
     Returns:
         _type_: _description_
     """
-    if isinstance(coord1,tuple):
-        x1,y1 = coord1
-    elif isinstance(coord1, MapCoord):
-        x1 = coord1.x
-        y1 = coord1.y
+    if isinstance(state1,tuple):
+        x1,y1 = state1
+    elif isinstance(state1, State):
+        x1 = state1.x
+        y1 = state1.y
 
-    if isinstance(coord2,tuple):
-        x2,y2 = coord2
-    elif isinstance(coord2, MapCoord):
-        x2 = coord2.x
-        y2 = coord2.y
+    if isinstance(state2,tuple):
+        x2,y2 = state2
+    elif isinstance(state2, State):
+        x2 = state2.x
+        y2 = state2.y
     return np.linalg.norm([x1-x2, y1-y2],ord=2)
+
+def get_actions_proj2():
+    actions = []
+    for ax in np.arange(-1,2):
+        for ay in np.arange(-1,2):
+            if ax==0 and ay==0:
+                continue
+            else:
+                actions.append((ax,ay))
+    actions = np.array(actions)
+    return actions
+
+def motion_model_proj3(curr_coord,
+                       curr_ori,
+                       L,
+                       dtheta=30,
+                       deg_coef=0.0):
+    """returns the action set defined in proj3
+
+    Returns:
+        _type_: _description_
+    """
+    x0,y0 = curr_coord
+    next_state = []
+    action_cost = []
+
+    for i in range(-2,3):
+        deg = i*dtheta
+        new_ori = (curr_ori+deg)%360
+        rad = new_ori/180*np.pi
+        x1,y1 = round_to_precision((x0 + L*np.cos(rad),
+                                     y0 + L*np.sin(rad))
+                                    )
+        
+        next_state.append((x1,y1,new_ori))
+        action_cost.append(L+deg_coef*np.abs(deg))
+    
+    return next_state, action_cost
 
 class Astar:
     # implement the Astar search algorithm
 
     def __init__(self,
                  init_coord,
+                 init_ori,
                  goal_coord,
+                 goal_ori,
                  map : Map,
+                 step_size=10,
+                 dtheta=30,
+                 coord_res=0.5,
                  savevid=False):
         
-        self.init_coord = MapCoord(init_coord,
+        self.init_coord = State(init_coord,
+                                   init_ori,
                                    cost_to_come=0.0,
                                    cost_to_go=cost_to_go_l2(init_coord,
                                                             goal_coord))
-        self.goal_coord = MapCoord(goal_coord,
+        self.goal_coord = State(goal_coord,
+                                   goal_ori,
                                    cost_to_come=np.inf,
                                    cost_to_go=0.0)
         self.map = map
         self.savevid = savevid
+        self.step_size = step_size
+        self.dtheta = dtheta
+
+        # use multi processing to check for obstacles
+        self.check_pool = multiprocessing.Pool()
 
         self.open_list = [self.init_coord]
         heapq.heapify(self.open_list)
-        # use an array to track which coordinate has been added to the open list
-        self.open_list_added = \
-            [[None for i in range(map.width)] for j in range(map.height)]
+        # use a dictionary to track which coordinate has been added to the open
+        # list
+        ndeg = int(360/self.dtheta)
+        nw = int(map.width/coord_res)+1
+        nh = int(map.height/coord_res)+1
+        self.open_list_added = [ [[None]*nw for j in range(nh)] \
+                                  for k in range(ndeg)
+                               ]
 
-        # use an array to store the visited map coordinates; 
-        # None means not visited. otherwise, stores the actual MapCoord obj
-        self.closed_list = \
-            [[None for i in range(map.width)] for j in range(map.height)]
+        # use a dictionary to store the visited map coordinates;
+        # None means not visited. otherwise, stores the actual State obj
+        self.closed_list = [ [[None]*nw for j in range(nh)] \
+                                  for k in range(ndeg)
+                            ]
 
         self.goal_reached = False
         self.path_to_goal = None
-
-        # create the list of possible actions
-        self.actions = []
-        for ax in np.arange(-1,2):
-            for ay in np.arange(-1,2):
-                if ax==0 and ay==0:
-                    continue
-                else:
-                    self.actions.append((ax,ay))
-        self.actions = np.array(self.actions)
-        self.actions_cost = np.round(np.linalg.norm(self.actions,ord=2,axis=1),
-                                     decimals=1)
         
         # create the handles for the plots
         self.fig = plt.figure(figsize=(12,6))
@@ -298,8 +441,11 @@ class Astar:
         # plot robot location
         self.robot_plot = self.ax.plot(self.init_coord.x, self.init_coord.y,
                                        marker="o",ms=5,c="r")[0]
-        # create an array of 0s and 1s to track closed list, for plot purpose
-        self.closed_plot_data = np.zeros_like(self.map.map)
+
+        # handle for plotting explored states
+        self.closed_plot_data_x = None
+        self.closed_plot_data_y = None
+        self.closed_plot = None
         self.fig.show()
 
         # create movie writer
@@ -313,32 +459,38 @@ class Astar:
     def map_plot_data(self):
         return 3*(self.map.map+self.map.map_inflate)
 
-    def add_to_closed(self, c : MapCoord):
+    def add_to_closed(self, c : State):
         """add the popped coordinate to the closed list
 
         Args:
-            c (MapCoord): _description_
+            c (State): _description_
         """
-        self.closed_list[c.y][c.x] = c
-        self.closed_plot_data[c.y][c.x] = 1
+        ideg, ih, iw = c.index
+        self.closed_list[ideg][ih][iw] = c
+        # self.closed_plot_data[c.y][c.x] = 1
 
-    def at_goal(self, c : MapCoord):
+    def at_goal(self, c : State):
         """return true if c is at goal coordinate
 
         Args:
-            c (MapCoord): _description_
+            c (State): _description_
         """
-        return self.goal_coord.same_coord(c)
+        return self.goal_coord.same_state_as(c)
     
-    def initiate_coord(self, coord, parent : MapCoord, edge_cost):
+    def initiate_coord(self,
+                       coord,
+                       ori,
+                       parent : State,
+                       edge_cost):
         """initiate new coordinate to be added to the open list
 
         Args:
             coord (_type_): _description_
             parent (_type_): _description_
         """
-        # create new MapCoord obj
-        new_c = MapCoord(coord=coord,
+        # create new State obj
+        new_c = State(coord=coord,
+                         orientation=ori,
                          cost_to_come=parent.cost_to_come+edge_cost,
                          cost_to_go=cost_to_go_l2(coord,self.goal_coord),
                          parent=parent)
@@ -347,21 +499,22 @@ class Astar:
         heapq.heappush(self.open_list, new_c)
         
         # mark as added
-        self.open_list_added[new_c.y][new_c.x] = new_c
+        ideg, ih, iw = new_c.index
+        self.open_list_added[ideg][ih][iw] = new_c
 
     def print_open_len(self):
         print("current open list length: ", len(self.open_list))
 
-    def update_coord(self, x, y, new_cost_to_come, parent):
+    def update_coord(self, c : State, new_cost_to_come, parent):
         """update the coordinate with new cost to come and new parent
 
         Args:
-            x (_type_): _description_
-            y (_type_): _description_
+            c :  the state to be updated
             new_cost_to_come (_type_): _description_
             parent (_type_): _description_
         """
-        self.open_list_added[y][x].update(new_cost_to_come,parent)
+        ideg, ih, iw = c.index
+        self.open_list_added[ideg][ih][iw].update(new_cost_to_come,parent)
     
     def on_obstacle(self, x, y):
         """check if coord (x,y) is on the obstacle
@@ -372,11 +525,65 @@ class Astar:
             y (_type_): _description_
         """
         return self.map[y,x]>0
+    
+    def add_to_closed_plot(self, state : State):
+        """plot the state's coord and orientation, along with the search
+        directions
+
+        Args:
+            state (_type_): _description_
+        """
+        plt.sca(self.ax)
+        x,y = state.x,state.y
+        rad = state.orientation/180*np.pi
+        # print(x,y,rad,state.orientation)
+        for i in range(0,1):
+            if i==0:
+                c='b'
+                lw=1
+            else:
+                c=(0.8,0.8,0.8)
+                lw=0.5
+            x_ = x+self.step_size*np.cos(rad)
+            y_ = y+self.step_size*np.sin(rad)
+            xarr = np.array([[x],[x_]])
+            yarr = np.array([[y],[y_]])
+            if self.closed_plot_data_x is None:
+                self.closed_plot_data_x = xarr
+                self.closed_plot_data_y = yarr
+            else:
+                self.closed_plot_data_x = np.concatenate(
+                    (self.closed_plot_data_x, xarr),axis=1)
+                self.closed_plot_data_y = np.concatenate(
+                    (self.closed_plot_data_y, yarr),axis=1)
 
     def visualize_search(self):
         """visualize the search process
         """
-        self.map_plot.set_data(self.map_plot_data+self.closed_plot_data)
+        # if not self.closed_plot:
+        #     self.closed_plot = plt.plot(self.closed_plot_data_x,
+        #                                 self.closed_plot_data_y,
+        #                                 color='b',
+        #                                 linewidth=0.5)[0]
+        # else:
+        #     # remove all lines
+        #     ax = plt.gca()
+        #     for art in list(ax.lines):
+        #         art.remove()
+        #     self.closed_plot.set_data(self.closed_plot_data_x,
+        #                               self.closed_plot_data_y)
+        
+        ax = plt.gca()
+        for art in list(ax.lines):
+            if art.get_label()=="closed":
+                art.remove()
+        
+        plt.plot(self.closed_plot_data_x,
+                                        self.closed_plot_data_y,
+                                        color='b',
+                                        linewidth=0.5,
+                                        label='closed')
+
         self.fig.canvas.flush_events()
         self.fig.canvas.draw()
         if self.savevid:
@@ -410,13 +617,14 @@ class Astar:
             self.writer.finish()
 
     def run(self):
-        """run the actual Dikstra's algorithm
+        """run the actual Astar algorithm
         """
         i = 0
         while self.goal_reached is False and len(self.open_list) > 0:
             # pop the coord with the min cost to come
             c = heapq.heappop(self.open_list)
             self.add_to_closed(c)
+            self.add_to_closed_plot(c)
 
             if self.at_goal(c):
                 self.goal_reached = True
@@ -425,52 +633,64 @@ class Astar:
                 break
             
             # not at goal, go through reachable point from c
-            for a, cost in zip(self.actions,self.actions_cost):
-                x,y = c.coord[0]+a[0], c.coord[1]+a[1]
-                
+            # apply the motion model
+            next_states, action_costs = motion_model_proj3(curr_coord=[c.x,c.y],
+                                                        curr_ori=c.orientation,
+                                                        L=self.step_size)
+            for next_state, cost in zip(next_states,action_costs):
+                x,y,ori = next_state
+                ideg = int(ori/self.dtheta)
+                ih = int(y/0.5)
+                iw = int(x/0.5)
                 self.map : Map
                 # skip if new coord not valid
-                if self.map.in_range(x,y) is False or \
-                    self.map.on_obstacle(x,y) is True:
+                if not self.map.in_range(x,y) or \
+                    self.map.check_obstacle(x,y,pool=self.check_pool):
                     continue
                 
                 # skip if new coord in closed list already
-                if self.closed_list[y][x] is not None:
+                if self.closed_list[ideg][ih][iw]:
                     continue
 
-                if self.open_list_added[y][x] is None:
+                if not self.open_list_added[ideg][ih][iw]:
                     # not added to the open list, do initialization first
-                    self.initiate_coord(coord=(x,y),parent=c,edge_cost=cost)
+                    self.initiate_coord(coord=(x,y),
+                                        ori=ori,
+                                        parent=c,
+                                        edge_cost=cost)
                 else:
                     # update the coordinate
-                    cost_to_come_ = c.cost_to_come + cost
-                    next_c : MapCoord = self.open_list_added[y][x]
-                    if cost_to_come_ < next_c.cost_to_come:
-                        next_c .update(cost_to_come_,c)
+                    new_cost_to_come = c.cost_to_come + cost
+                    next_s : State = self.open_list_added[ideg][ih][iw]
+                    if new_cost_to_come < next_s.cost_to_come:
+                        next_s.update(new_cost_to_come,c)
                         heapq.heapify(self.open_list)
 
             # visualize the result at some fixed interval
             i+=1
-            if i%1000==0:
+            if i%2000==0:
                 self.visualize_search()
         
         if self.goal_reached:
             # show the path to the goal
             self.visualize_path()
             
-    def backtrack(self, goal_coord : MapCoord):
+    def backtrack(self, goal_coord : State):
         """backtrack to get the path to the goal from the initial position
 
         """
+        print("running back track")
         self.path_to_goal = []
         c = goal_coord
-
-        while c.same_coord(self.init_coord) is False:
+        print(c.coord)
+        print(self.init_coord.coord)
+        while not c.same_state_as(self.init_coord,ignore_ori=True):
             self.path_to_goal.append(c.coord)
             c = c.parent
 
         self.path_to_goal.append(c.coord)
         self.path_to_goal.reverse()
+        print(self.path_to_goal)
 
 def ask_for_coord(map:Map, mode="initial"):
     """function for asking user input of init or goal coordinate; if user input
@@ -483,19 +703,19 @@ def ask_for_coord(map:Map, mode="initial"):
         x = input(f"Please input {mode} coordinate x: ")
         y = input(f"Please input {mode} coordinate y: ")
 
-        x = int(x)
-        y = int(y)
-
         if x<0 or x>=map.width or y<0 or y>=map.height:
             print("Coordinate out of range of map, please try again")
             continue
-        
-        if map.map_inflate[y,x] > 0:
+
+        if map.map_inflate[int(y),int(x)] > 0:
             print("Coordinate within obstacle, please try again")
             continue
+
+        ori = input(f"Please input {mode} orientation (degrees): ")
+        ori = int(ori/30)*30
         
         break
-    return (x,y)
+    return (x,y), ori
 
 if __name__ == "__main__":
 
@@ -522,12 +742,22 @@ if __name__ == "__main__":
         custom_map.add_obstacle(corners=c)
 
     # ask user for init and goal position
-    init_coord = ask_for_coord(custom_map, mode="initial")
-    goal_coord = ask_for_coord(custom_map, mode="goal")
+    # init_coord,init_ori = ask_for_coord(custom_map, mode="initial")
+    # goal_coord,goal_ori = ask_for_coord(custom_map, mode="goal")
+        
+    init_coord = (10,10)
+    init_ori = 0
+    goal_coord = (600,100)
+    goal_ori = 30
 
     # create Astar solver
-    d = Astar(init_coord=init_coord,goal_coord=goal_coord,map=custom_map,
-                 savevid=savevid)
+    d = Astar(init_coord=init_coord,
+              init_ori=init_ori,
+              goal_coord=goal_coord,
+              goal_ori=goal_ori,
+              map=custom_map,
+              step_size=40,
+              savevid=savevid)
 
     # run the algorithm
     d.run()
