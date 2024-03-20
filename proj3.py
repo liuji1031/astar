@@ -5,8 +5,11 @@ import multiprocessing
 import matplotlib.pyplot as plt
 from matplotlib.animation import FFMpegWriter
 
-def within_obstacle(x, y, corners : np.ndarray, inflate_radius):
-    """check if (x, y) is within the obstacle defined by the corners
+def within_obstacle(x_start,y_start,
+                    x_end,y_end,
+                    corners : np.ndarray, inflate_radius):
+    """check if the line segment defined by (x_start,y_start),(x_end, y_end) is 
+    within the obstacle defined by the corners
 
     Args:
         x (_type_): _description_
@@ -16,8 +19,8 @@ def within_obstacle(x, y, corners : np.ndarray, inflate_radius):
     Returns:
         _type_: _description_
     """
-    out = True
     n = corners.shape[0]
+    intersection = []
     for i in range(n):
         j = int((i+1)%n) # the adjacent corner index in clockwise direction
 
@@ -33,12 +36,32 @@ def within_obstacle(x, y, corners : np.ndarray, inflate_radius):
         p = np.inner((x1,y1),normal)
 
         # find the meshgrid points whose projections are <= p
-        p_xy = np.inner((x,y), normal)
+        p1 = np.inner((x_start,y_start), normal)
+        p2 = np.inner((x_end,y_end), normal)
 
-        # if p_xy<self.inflate_radius is true for all edges, then x,y is
-        # within the obstacle
-        out = out&(p_xy<p+inflate_radius)
-    return out
+        # now see if (1-rho)*p1+rho*p2 for rho>=0 and rho<=1 has any range of
+        # rho that makes the value < p+inflate_radius
+        p_compare = p+inflate_radius
+        if p1 > p_compare and p2 > p_compare:
+            return False
+        elif p1 <= p_compare and p2 <= p_compare:
+            intersection.append([0.0,1.0]) # full range
+        elif p1 > p_compare and p2 <= p_compare:
+            intersection.append([(p1-p_compare)/(p1-p2), 1.0])
+        elif p1 < p_compare and p2 >= p_compare:
+            intersection.append([0.0, (p1-p_compare)/(p1-p2)])
+
+    # compute the final intersection
+    min_val = 0.0
+    max_val = 1.0
+    for i in intersection:
+        min_val = max(min_val, i[0])
+        max_val = min(max_val, i[1])
+
+    # if the final intersection is non empty, it means some of the line segment
+    # is within the obstacle
+    return min_val<=max_val
+
 
 class Map:
     """class representing the map
@@ -169,7 +192,9 @@ class Map:
             else:
                 return True
 
-    def check_obstacle(self, x, y, pool=None):
+    def check_obstacle(self, x_start, y_start,
+                       x_end, y_end,
+                       pool=None):
         """go through all obstacles to check if x,y is within any one of them
 
         Args:
@@ -179,13 +204,20 @@ class Map:
         if pool is None:
             for corners in self.obstacle_corners:
                 # returns true if within any obstacle
-                if within_obstacle(x,y,corners,self.inflate_radius):
+                if within_obstacle(x_start,
+                                   y_start,
+                                   x_end,
+                                   y_end,
+                                   corners,
+                                   self.inflate_radius):
                     return True
             return False
         else:
             nobs = len(self.obstacle_corners)
-            inputs = zip((x,)*nobs,
-                         (y,)*nobs,
+            inputs = zip((x_start,)*nobs,
+                         (y_start,)*nobs,
+                         (x_end,)*nobs,
+                         (y_end,)*nobs,
                          self.obstacle_corners,
                          (self.inflate_radius,)*nobs)
             outputs = pool.starmap(within_obstacle,inputs)
@@ -544,8 +576,8 @@ class Astar:
             else:
                 c=(0.8,0.8,0.8)
                 lw=0.5
-            x_ = x+self.step_size*np.cos(rad)
-            y_ = y+self.step_size*np.sin(rad)
+            x_ = x+8*np.cos(rad)
+            y_ = y+8*np.sin(rad)
             xarr = np.array([[x],[x_]])
             yarr = np.array([[y],[y_]])
             if self.closed_plot_data_x is None:
@@ -579,10 +611,10 @@ class Astar:
                 art.remove()
         
         plt.plot(self.closed_plot_data_x,
-                                        self.closed_plot_data_y,
-                                        color='b',
-                                        linewidth=0.5,
-                                        label='closed')
+                self.closed_plot_data_y,
+                color='b',
+                linewidth=0.5,
+                label='closed')
 
         self.fig.canvas.flush_events()
         self.fig.canvas.draw()
@@ -645,7 +677,11 @@ class Astar:
                 self.map : Map
                 # skip if new coord not valid
                 if not self.map.in_range(x,y) or \
-                    self.map.check_obstacle(x,y,pool=self.check_pool):
+                    self.map.check_obstacle(x_start=c.x,
+                                            y_start=c.y,
+                                            x_end=x,
+                                            y_end=y,
+                                            pool=self.check_pool):
                     continue
                 
                 # skip if new coord in closed list already
