@@ -160,7 +160,7 @@ class Map:
             x (_type_): _description_
             y (_type_): _description_
         """
-        if x>=0 and x<self.width and y>=0 and y<self.height:
+        if x>=0 and x<=self.width and y>=0 and y<=self.height:
             return True
         else:
             return False
@@ -208,6 +208,7 @@ class Map:
                     return True
             return False
         else:
+            # use parallel pool to speed things up
             nobs = len(self.obstacle_corners)
             inputs = zip((x_start,)*nobs,
                          (y_start,)*nobs,
@@ -372,19 +373,18 @@ def motion_model_proj3(curr_coord,
     """
     x0,y0 = curr_coord
     next_state = []
-    action_cost = []
+    action_cost = [L]*5
 
-    for i in range(-2,3):
-        deg = i*dtheta
-        new_ori = (curr_ori+deg)%360
-        rad = new_ori/180*np.pi
-        x1,y1 = round_to_precision((x0 + L*np.cos(rad),
-                                     y0 + L*np.sin(rad))
-                                    )
-        
-        next_state.append((x1,y1,new_ori))
-        action_cost.append(L+deg_coef*np.abs(deg))
-    
+    deg = np.arange(-2,3,1)*dtheta
+    new_ori = (curr_ori+deg)%360
+    rad = new_ori/180*np.pi
+    x1 = round_to_precision(x0+L*np.cos(rad))
+    y1 = round_to_precision(y0+L*np.sin(rad))
+
+    next_state = np.hstack((x1[:,np.newaxis],
+                                 y1[:,np.newaxis],
+                                 new_ori[:,np.newaxis]))
+
     return next_state, action_cost
 
 class Astar:
@@ -399,7 +399,8 @@ class Astar:
                  step_size=10,
                  dtheta=30,
                  coord_res=0.5,
-                 savevid=False):
+                 savevid=False,
+                 vid_res=72):
         
         self.init_coord = State(init_coord,
                                    init_ori,
@@ -468,7 +469,7 @@ class Astar:
             self.writer = FFMpegWriter(fps=15, metadata=dict(title='Astar',
                                                         artist='Matplotlib',
                                                         comment='Path search'))
-            self.writer.setup(self.fig, outfile="./animation.mp4",dpi=72)
+            self.writer.setup(self.fig, outfile="./animation.mp4",dpi=vid_res)
 
     @property
     def map_plot_data(self):
@@ -559,8 +560,8 @@ class Astar:
             else:
                 c=(0.8,0.8,0.8)
                 lw=0.5
-            x_ = x+8*np.cos(rad)
-            y_ = y+8*np.sin(rad)
+            x_ = x+5*np.cos(rad)
+            y_ = y+5*np.sin(rad)
             xarr = np.array([x,x_,None])
             yarr = np.array([y,y_,None])
             if self.closed_plot_data_x is None:
@@ -578,7 +579,7 @@ class Astar:
         if not self.closed_plot:
             self.closed_plot = plt.plot(self.closed_plot_data_x,
                                         self.closed_plot_data_y,
-                                        color='b',
+                                        color=(3/255, 198/255, 252/255),
                                         linewidth=0.5)[0]
         else:
             # update only
@@ -595,17 +596,17 @@ class Astar:
         """visualize the result of backtrack
         """
         path = np.array(self.path_to_goal)
-        plt.plot(path[:,0],path[:,1],color='r',linewidth=1)
+        plt.plot(path[:,0],path[:,1],color='r',marker="o",linewidth=1.5,ms=5)
 
-        n = path.shape[0]
-        ind = np.linspace(0,n-1,50).astype(int)
-        for i in ind:
-            self.robot_plot.set_data([path[i,0],],[path[i,1],])
-            self.fig.canvas.flush_events()
-            self.fig.canvas.draw()
-            if self.savevid:
-                self.writer.grab_frame()
-            plt.pause(0.001)
+        # n = path.shape[0]
+        # ind = np.linspace(0,n-1,50).astype(int)
+        # for i in ind:
+        #     self.robot_plot.set_data([path[i,0],],[path[i,1],])
+        #     self.fig.canvas.flush_events()
+        #     self.fig.canvas.draw()
+        #     if self.savevid:
+        #         self.writer.grab_frame()
+        #     plt.pause(0.001)
         
         # add some more static frames with the robot at goal
         for _ in range(40):
@@ -640,21 +641,25 @@ class Astar:
                                                         L=self.step_size)
             for next_state, cost in zip(next_states,action_costs):
                 x,y,ori = next_state
+
+                if not self.map.in_range(x,y):
+                    continue
+
                 ideg = int(ori/self.dtheta)
                 ih = int(y/0.5)
                 iw = int(x/0.5)
                 self.map : Map
-                # skip if new coord not valid
-                if not self.map.in_range(x,y) or \
-                    self.map.check_obstacle(x_start=c.x,
+
+                # skip if new coord in closed list already
+                if self.closed_list[ideg][ih][iw]:
+                    continue
+
+                # skip if overlap with obstacle
+                if self.map.check_obstacle(x_start=c.x,
                                             y_start=c.y,
                                             x_end=x,
                                             y_end=y,
                                             pool=self.check_pool):
-                    continue
-                
-                # skip if new coord in closed list already
-                if self.closed_list[ideg][ih][iw]:
                     continue
 
                 if not self.open_list_added[ideg][ih][iw]:
@@ -673,7 +678,7 @@ class Astar:
 
             # visualize the result at some fixed interval
             i+=1
-            if i%100==0:
+            if i%200==0:
                 self.visualize_search()
         
         if self.goal_reached:
@@ -684,18 +689,14 @@ class Astar:
         """backtrack to get the path to the goal from the initial position
 
         """
-        print("running back track")
         self.path_to_goal = []
         c = goal_coord
-        print(c.coord)
-        print(self.init_coord.coord)
         while not c.same_state_as(self.init_coord,ignore_ori=True):
             self.path_to_goal.append(c.coord)
             c = c.parent
 
         self.path_to_goal.append(c.coord)
         self.path_to_goal.reverse()
-        print(self.path_to_goal)
 
 def ask_for_coord(map:Map, mode="initial"):
     """function for asking user input of init or goal coordinate; if user input
@@ -727,11 +728,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--savevid", type=bool, default=False,
                         help="whether to save the demo as video")
+    parser.add_argument("--dpi", type=int, default=72,
+                        help="resolution of the video saved")
+    parser.add_argument("--rr", type=int, default=5,
+                        help="robot radius")
     args = parser.parse_args()
     savevid = args.savevid
 
     # create map object
-    custom_map = Map()
+    custom_map = Map(inflate_radius=args.rr)
 
     # define the corners of all the convex obstacles
     obs_corners = []
@@ -752,18 +757,19 @@ if __name__ == "__main__":
         
     init_coord = (10,10)
     init_ori = 0
-    goal_coord = (600,100)
-    goal_ori = 30
+    goal_coord = (225,300)
+    goal_ori = 60
 
     # create Astar solver
-    d = Astar(init_coord=init_coord,
+    a = Astar(init_coord=init_coord,
               init_ori=init_ori,
               goal_coord=goal_coord,
               goal_ori=goal_ori,
               map=custom_map,
-              step_size=40,
-              savevid=savevid)
+              step_size=30,
+              savevid=savevid,
+              vid_res=args.dpi)
 
     # run the algorithm
-    d.run()
+    a.run()
     
