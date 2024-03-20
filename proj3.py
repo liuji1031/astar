@@ -7,7 +7,7 @@ from matplotlib.animation import FFMpegWriter
 
 def within_obstacle(x_start,y_start,
                     x_end,y_end,
-                    corners : np.ndarray, inflate_radius):
+                    boundary):
     """check if the line segment defined by (x_start,y_start),(x_end, y_end) is 
     within the obstacle defined by the corners
 
@@ -19,21 +19,11 @@ def within_obstacle(x_start,y_start,
     Returns:
         _type_: _description_
     """
-    n = corners.shape[0]
+    n = len(boundary)
     intersection = []
     for i in range(n):
-        j = int((i+1)%n) # the adjacent corner index in clockwise direction
-
-        # get x, y
-        x1,y1 = corners[i,:]
-        x2,y2 = corners[j,:]
-
         # get normal direction
-        normal_dir = np.arctan2(y2-y1, x2-x1) + np.pi/2
-        normal = np.array([np.cos(normal_dir),np.sin(normal_dir)])
-
-        # compute the projection of one of the corner point
-        p = np.inner((x1,y1),normal)
+        normal,p = boundary[i]
 
         # find the meshgrid points whose projections are <= p
         p1 = np.inner((x_start,y_start), normal)
@@ -41,15 +31,14 @@ def within_obstacle(x_start,y_start,
 
         # now see if (1-rho)*p1+rho*p2 for rho>=0 and rho<=1 has any range of
         # rho that makes the value < p+inflate_radius
-        p_compare = p+inflate_radius
-        if p1 > p_compare and p2 > p_compare:
+        if p1 > p and p2 > p:
             return False
-        elif p1 <= p_compare and p2 <= p_compare:
+        elif p1 <= p and p2 <= p:
             intersection.append([0.0,1.0]) # full range
-        elif p1 > p_compare and p2 <= p_compare:
-            intersection.append([(p1-p_compare)/(p1-p2), 1.0])
-        elif p1 < p_compare and p2 >= p_compare:
-            intersection.append([0.0, (p1-p_compare)/(p1-p2)])
+        elif p1 > p and p2 <= p:
+            intersection.append([(p1-p)/(p1-p2), 1.0])
+        elif p1 < p and p2 >= p:
+            intersection.append([0.0, (p1-p)/(p1-p2)])
 
     # compute the final intersection
     min_val = 0.0
@@ -86,6 +75,7 @@ class Map:
         self.map_inflate = np.zeros_like(self.map)
         self.inflate_radius = inflate_radius
         self.obstacle_corners = []
+        self.obstacle_boundary = []
 
     def add_obstacle(self, corners : np.ndarray):
         """add obstacle defined by the corner points. the corners should define
@@ -115,6 +105,7 @@ class Map:
         self.obstacle_corners.append(corners)
 
         n = corners.shape[0]
+        boundary = []
         for i in range(corners.shape[0]):
             j = int((i+1)%n) # the adjacent corner index in clockwise direction
 
@@ -135,6 +126,11 @@ class Map:
 
             obs_map += np.where(proj_all<=p,1,0)
             obs_map_inflate += np.where(proj_all<=p+self.inflate_radius,1,0)
+
+            # record the boundary and projection value
+            boundary.append([normal,p+self.inflate_radius])
+        
+        self.obstacle_boundary.append(boundary)
         
         # find points that meet all half plane conditions
         obs_map = np.where(obs_map==n,1,0)
@@ -202,14 +198,13 @@ class Map:
             y (_type_): _description_
         """
         if pool is None:
-            for corners in self.obstacle_corners:
+            for boundary in self.obstacle_boundary:
                 # returns true if within any obstacle
                 if within_obstacle(x_start,
                                    y_start,
                                    x_end,
                                    y_end,
-                                   corners,
-                                   self.inflate_radius):
+                                   boundary):
                     return True
             return False
         else:
@@ -218,8 +213,7 @@ class Map:
                          (y_start,)*nobs,
                          (x_end,)*nobs,
                          (y_end,)*nobs,
-                         self.obstacle_corners,
-                         (self.inflate_radius,)*nobs)
+                         self.obstacle_boundary)
             outputs = pool.starmap(within_obstacle,inputs)
 
             for out in outputs:
@@ -365,17 +359,6 @@ def cost_to_go_l2(state1, state2):
         x2 = state2.x
         y2 = state2.y
     return np.linalg.norm([x1-x2, y1-y2],ord=2)
-
-def get_actions_proj2():
-    actions = []
-    for ax in np.arange(-1,2):
-        for ay in np.arange(-1,2):
-            if ax==0 and ay==0:
-                continue
-            else:
-                actions.append((ax,ay))
-    actions = np.array(actions)
-    return actions
 
 def motion_model_proj3(curr_coord,
                        curr_ori,
@@ -578,49 +561,35 @@ class Astar:
                 lw=0.5
             x_ = x+8*np.cos(rad)
             y_ = y+8*np.sin(rad)
-            xarr = np.array([[x],[x_]])
-            yarr = np.array([[y],[y_]])
+            xarr = np.array([x,x_,None])
+            yarr = np.array([y,y_,None])
             if self.closed_plot_data_x is None:
                 self.closed_plot_data_x = xarr
                 self.closed_plot_data_y = yarr
             else:
                 self.closed_plot_data_x = np.concatenate(
-                    (self.closed_plot_data_x, xarr),axis=1)
+                    (self.closed_plot_data_x, xarr))
                 self.closed_plot_data_y = np.concatenate(
-                    (self.closed_plot_data_y, yarr),axis=1)
+                    (self.closed_plot_data_y, yarr))
 
     def visualize_search(self):
         """visualize the search process
         """
-        # if not self.closed_plot:
-        #     self.closed_plot = plt.plot(self.closed_plot_data_x,
-        #                                 self.closed_plot_data_y,
-        #                                 color='b',
-        #                                 linewidth=0.5)[0]
-        # else:
-        #     # remove all lines
-        #     ax = plt.gca()
-        #     for art in list(ax.lines):
-        #         art.remove()
-        #     self.closed_plot.set_data(self.closed_plot_data_x,
-        #                               self.closed_plot_data_y)
-        
-        ax = plt.gca()
-        for art in list(ax.lines):
-            if art.get_label()=="closed":
-                art.remove()
-        
-        plt.plot(self.closed_plot_data_x,
-                self.closed_plot_data_y,
-                color='b',
-                linewidth=0.5,
-                label='closed')
+        if not self.closed_plot:
+            self.closed_plot = plt.plot(self.closed_plot_data_x,
+                                        self.closed_plot_data_y,
+                                        color='b',
+                                        linewidth=0.5)[0]
+        else:
+            # update only
+            self.closed_plot.set_data(self.closed_plot_data_x,
+                                      self.closed_plot_data_y)
 
         self.fig.canvas.flush_events()
         self.fig.canvas.draw()
         if self.savevid:
             self.writer.grab_frame()
-        plt.pause(0.001)
+        plt.pause(0.0001)
 
     def visualize_path(self):
         """visualize the result of backtrack
@@ -704,7 +673,7 @@ class Astar:
 
             # visualize the result at some fixed interval
             i+=1
-            if i%2000==0:
+            if i%100==0:
                 self.visualize_search()
         
         if self.goal_reached:
