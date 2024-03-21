@@ -936,9 +936,11 @@ class Astar:
 
         # add some more static frames with the robot at goal
         for _ in range(40):
-            plt.pause(0.005)
+            
             if self.savevid:
                 self.writer.grab_frame()
+            else:
+                plt.pause(0.05)
 
         # finish writing video
         if self.savevid:
@@ -1089,7 +1091,7 @@ if __name__ == "__main__":
         
     init_coord = (10,300)
     init_ori = -90
-    goal_coord = (1150,250)
+    goal_coord = (850,100)
     goal_ori = -60
 
     vt = VisTree(corners=corners,goal_coord=goal_coord,
