@@ -7,7 +7,8 @@ from matplotlib.animation import FFMpegWriter
 
 def within_obstacle(x_start,y_start,
                     x_end,y_end,
-                    boundary):
+                    boundary,
+                    exclude_boundary=False):
     """check if the line segment defined by (x_start,y_start),(x_end, y_end) is 
     within the obstacle defined by the corners
 
@@ -31,14 +32,24 @@ def within_obstacle(x_start,y_start,
 
         # now see if (1-rho)*p1+rho*p2 for rho>=0 and rho<=1 has any range of
         # rho that makes the value < p+inflate_radius
-        if p1 > p and p2 > p:
-            return False
-        elif p1 <= p and p2 <= p:
-            intersection.append([0.0,1.0]) # full range
-        elif p1 > p and p2 <= p:
-            intersection.append([(p1-p)/(p1-p2), 1.0])
-        elif p1 < p and p2 >= p:
-            intersection.append([0.0, (p1-p)/(p1-p2)])
+        if not exclude_boundary:
+            if p1 > p and p2 > p:
+                return False
+            elif p1 <= p and p2 <= p:
+                intersection.append([0.0,1.0]) # full range
+            elif p1 > p and p2 <= p:
+                intersection.append([(p1-p)/(p1-p2), 1.0])
+            elif p1 < p and p2 >= p:
+                intersection.append([0.0, (p1-p)/(p1-p2)])
+        else:
+            if p1 >= p-1e-8 and p2 >= p-1e-8:
+                return False
+            elif p1 < p and p2 < p:
+                intersection.append([0.0,1.0]) # full range
+            elif p1 > p and p2 < p:
+                intersection.append([(p1-p)/(p1-p2), 1.0])
+            elif p1 < p and p2 > p:
+                intersection.append([0.0, (p1-p)/(p1-p2)])
 
     # compute the final intersection
     min_val = 0.0
@@ -49,7 +60,12 @@ def within_obstacle(x_start,y_start,
 
     # if the final intersection is non empty, it means some of the line segment
     # is within the obstacle
-    return min_val<=max_val
+    print(min_val, max_val)
+    if not exclude_boundary:
+        return min_val<=max_val
+    else:
+        # okay if min_val takes 0 and max_val takes 1
+        return (min_val<max_val-1e-8)
 
 
 class Map:
@@ -76,6 +92,7 @@ class Map:
         self.inflate_radius = inflate_radius
         self.obstacle_corners = []
         self.obstacle_boundary = []
+        self.obstacle_boundary_inflate = []
 
     def add_obstacle(self, corners : np.ndarray):
         """add obstacle defined by the corner points. the corners should define
@@ -106,6 +123,7 @@ class Map:
 
         n = corners.shape[0]
         boundary = []
+        boundary_inflate = []
         for i in range(corners.shape[0]):
             j = int((i+1)%n) # the adjacent corner index in clockwise direction
 
@@ -128,9 +146,11 @@ class Map:
             obs_map_inflate += np.where(proj_all<=p+self.inflate_radius,1,0)
 
             # record the boundary and projection value
-            boundary.append([normal,p+self.inflate_radius])
+            boundary.append([normal,p])
+            boundary_inflate.append([normal,p+self.inflate_radius])
         
         self.obstacle_boundary.append(boundary)
+        self.obstacle_boundary_inflate.append(boundary_inflate)
         
         # find points that meet all half plane conditions
         obs_map = np.where(obs_map==n,1,0)
@@ -147,9 +167,9 @@ class Map:
         Args:
             show (bool, optional): _description_. Defaults to True.
         """
-        plt.imshow(self.map+self.map_inflate)
+        plt.imshow(self.map+self.map_inflate,cmap="gray_r",vmax=8)
         plt.gca().invert_yaxis()
-        plt.colorbar()
+        plt.colorbar(shrink=0.3)
         if show:
             plt.show()
 
@@ -165,29 +185,6 @@ class Map:
         else:
             return False
 
-    def on_obstacle(self, x, y, use_inflate=True):
-        """check if x, y coord is a valid point on the map, i.e., within range
-        and obstacle free
-
-        Args:
-            x (_type_): _description_
-            y (_type_): _description_
-
-        Returns:
-            _type_: _description_
-        """
-        
-        if use_inflate:
-            if self.map_inflate[y,x] < 1:
-                return False
-            else:
-                return True
-        else:
-            if self.map[y,x] < 1:
-                return False
-            else:
-                return True
-
     def check_obstacle(self, x_start, y_start,
                        x_end, y_end,
                        pool=None):
@@ -198,7 +195,7 @@ class Map:
             y (_type_): _description_
         """
         if pool is None:
-            for boundary in self.obstacle_boundary:
+            for boundary in self.obstacle_boundary_inflate:
                 # returns true if within any obstacle
                 if within_obstacle(x_start,
                                    y_start,
@@ -214,13 +211,33 @@ class Map:
                          (y_start,)*nobs,
                          (x_end,)*nobs,
                          (y_end,)*nobs,
-                         self.obstacle_boundary)
+                         self.obstacle_boundary_inflate)
             outputs = pool.starmap(within_obstacle,inputs)
 
             for out in outputs:
                 if out:
                     return True
             return False
+        
+    def get_obstacle_corners_array(self,
+                                   omit=[]):
+        """returns an numpy array of all obstacle corners
+
+        Returns:
+            _type_: _description_
+        """
+        out = []
+        for i, corners in enumerate(self.obstacle_corners):
+            corners:np.ndarray
+            for j in range(corners.shape[0]):
+                skip=False
+                for o in omit:
+                    if (i,j)==o:
+                        skip=True
+                        break
+                if not skip:
+                    out.append(corners[j,:])
+        return np.array(out)
     
     @staticmethod
     def get_corners_hex(center, radius):
@@ -386,6 +403,132 @@ def motion_model_proj3(curr_coord,
                                  new_ori[:,np.newaxis]))
 
     return next_state, action_cost
+
+class VisTreeNode:
+    """node of the visibility tree
+
+    Returns:
+        _type_: _description_
+    """
+    def __init__(self,
+                 coord,
+                 dist_to_goal,
+                 parent=None) -> None:
+        self.coord = coord
+        self.dist_to_goal = dist_to_goal
+        self.parent = parent
+        self.children = []
+
+    def __lt__(self, other):
+        return self.dist_to_goal < other.dist_to_goal
+    
+    def __gt__(self, other):
+        return self.dist_to_goal > other.dist_to_goal
+    
+    def __eq__(self, other):
+        return self.dist_to_goal == other.dist_to_goal
+    
+class VisTree:
+    def __init__(self,
+                 corners:np.ndarray,
+                 goal_coord,
+                 boundary,
+                 map_w=1200,
+                 map_h=500) -> None:
+        """build the visibility tree from the corner points
+
+        Args:
+            corners (_type_): _description_
+            goal_coord (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        print(f"num of boundary: {len(boundary)}")
+        # first create the root node
+        root = VisTreeNode(coord=goal_coord,
+                           dist_to_goal=0)
+        
+        q = [root]
+        heapq.heapify(q)
+        n = corners.shape[0]
+
+        closed = dict()
+        open_nodes = dict()
+        while len(q)>0:
+            t:VisTreeNode = heapq.heappop(q)
+            
+            closed[t.coord] = t
+
+            # go through remaining corners to see which one the node t can see
+            # directly
+            
+            for i in range(n):
+                c = corners[i,:]
+                in_obstacle=False
+
+                # skip if in closed list
+                if (c[0],c[1]) in closed:
+                    continue
+                print(f"checking {corners[i,:]}")
+                
+                # make sure not on the edge of the map
+                if c[0]==0.0 and t.coord[0]==0.0:
+                    continue
+
+                if c[0]==map_w and t.coord[0]==map_w:
+                    continue
+
+                if c[1]==0.0 and t.coord[1]==0.0:
+                    continue
+
+                if c[1]==map_h and t.coord[1]==map_h:
+                    continue
+
+                # check obstacles
+                for ib,b in enumerate(boundary):
+                    out = within_obstacle(x_start=t.coord[0],y_start=t.coord[1],
+                                    x_end=c[0],y_end=c[1],
+                                    boundary=b,
+                                    exclude_boundary=True)
+                    if out:
+                        in_obstacle=True
+                        break
+                
+                print(f"on obstacle {in_obstacle}")
+                if in_obstacle:
+                    continue
+                
+                dist = np.linalg.norm((t.coord[0]-c[0],t.coord[1]-c[1]))
+                if (c[0],c[1]) not in open_nodes:
+                    # initialize
+                    node = VisTreeNode(coord=(c[0],c[1]),
+                                       dist_to_goal=t.dist_to_goal+dist,
+                                       parent=t)
+                    
+                    # add to open list
+                    open_nodes[(c[0],c[1])] = node
+
+                    # push to heap
+                    heapq.heappush(q, node)
+                else:
+                    node:VisTreeNode = open_nodes[(c[0],c[1])]
+
+                    if node.dist_to_goal > t.dist_to_goal+dist:
+                        node.dist_to_goal = t.dist_to_goal+dist
+                        node.parent = t
+                        heapq.heapify(q)
+
+        # build the tree
+        for v in closed.values():
+            v:VisTreeNode
+            p = v.parent
+            if not p:
+                continue
+            print(v.coord, p)
+            p.children.append(v)
+            
+        self.root = root
 
 class Astar:
     # implement the Astar search algorithm
