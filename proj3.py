@@ -60,13 +60,38 @@ def within_obstacle(x_start,y_start,
 
     # if the final intersection is non empty, it means some of the line segment
     # is within the obstacle
-    print(min_val, max_val)
     if not exclude_boundary:
         return min_val<=max_val
     else:
         # okay if min_val takes 0 and max_val takes 1
         return (min_val<max_val-1e-8)
 
+def within_obstacle_point(coord,
+                    boundary):
+    """check if the line segment defined by (x_start,y_start),(x_end, y_end) is 
+    within the obstacle defined by the corners
+
+    Args:
+        x (_type_): _description_
+        y (_type_): _description_
+        corners (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    n = len(boundary)
+    out=None
+    for i in range(n):
+        # get normal direction
+        normal,p = boundary[i]
+
+        # find the meshgrid points whose projections are <= p
+        p_ = np.inner(coord, normal.reshape((1,2)))
+        if out is None:
+            out = (p_<=p)
+        else:
+            out=np.logical_and(out, p_<=p)
+    return out
 
 class Map:
     """class representing the map
@@ -74,7 +99,8 @@ class Map:
     def __init__(self,
                  width=1200,
                  height=500,
-                 inflate_radius=5
+                 inflate_radius=5,
+                 res=0.5,
                  ):
         """create a map object to represent the discretized map
 
@@ -86,6 +112,7 @@ class Map:
         """
         self.width = width
         self.height = height
+        self.res=res
         self.map = np.zeros((height, width),dtype=np.int8) # 0: obstacle free
                                                            # 1: obstacle
         self.map_inflate = np.zeros_like(self.map)
@@ -93,6 +120,7 @@ class Map:
         self.obstacle_corners = []
         self.obstacle_boundary = []
         self.obstacle_boundary_inflate = []
+        self.obstacle_map = None
 
     def add_obstacle(self, corners : np.ndarray):
         """add obstacle defined by the corner points. the corners should define
@@ -160,6 +188,30 @@ class Map:
         self.map = np.where(obs_map==1,obs_map,self.map)
         self.map_inflate = np.where(obs_map_inflate==1,
                                     obs_map_inflate,self.map_inflate)
+
+    def compute_obstacle_map(self):
+        """compute the obstacle map at the resolution defined
+        """
+
+        nh = int(self.height/self.res+1)
+        nw=int(self.width/self.res+1)
+        xs,ys = np.meshgrid(
+                            np.linspace(0,self.width,nw),
+                            np.linspace(0,self.height,nh)
+                            )
+
+        self.obstacle_map = np.zeros((nh,nw),dtype=bool)
+        p = multiprocessing.Pool()
+
+        xy_array = np.hstack((xs.reshape((-1,1)),ys.reshape((-1,1))))
+        out = None
+        for b in self.obstacle_boundary_inflate:
+            tmp = within_obstacle_point(xy_array, b)
+            if out is None:
+                out = tmp
+            else:
+                out = np.logical_or(out, tmp)
+        self.obstacle_map = np.reshape(out, (nh,nw))
 
     def plot(self,show=True):
         """show the map
@@ -304,7 +356,8 @@ class State:
                  orientation,
                  cost_to_come,
                  cost_to_go=None,
-                 parent=None) -> None:
+                 parent=None,
+                 vt_node=None) -> None:
         self.coord = round_to_precision(coord)
         # orientation: discrete value for this problem, i.e., 30, 60 etc
         self.orientation = orientation
@@ -312,6 +365,7 @@ class State:
         self.cost_to_go = cost_to_go
         self.estimated_cost = self.cost_to_come+self.cost_to_go
         self.parent = parent
+        self.vt_node = vt_node
 
     def __lt__(self, other):
         return self.estimated_cost < other.estimated_cost
@@ -328,10 +382,16 @@ class State:
     def same_state_as(self, other, ignore_ori=False):
         dx = self.x-other.x
         dy = self.y-other.y
+        rad1 = self.orientation/180*np.pi
+        v1 = np.array([np.cos(rad1),np.sin(rad1)])
+
+        rad2 = other.orientation/180*np.pi
+        v2 = np.array([np.cos(rad2),np.sin(rad2)])
+
+        proj = np.inner(v1,v2).item()
 
         if not ignore_ori:
-            return (np.linalg.norm((dx,dy))<1.5) & \
-                (np.abs(self.orientation-other.orientation) < 1e-8)
+            return (np.linalg.norm((dx,dy))<1.5) & (proj>0)
         else:
             return np.linalg.norm((dx,dy))<1e-3
     
@@ -399,8 +459,8 @@ def motion_model_proj3(curr_coord,
     y1 = round_to_precision(y0+L*np.sin(rad))
 
     next_state = np.hstack((x1[:,np.newaxis],
-                                 y1[:,np.newaxis],
-                                 new_ori[:,np.newaxis]))
+                            y1[:,np.newaxis],
+                            new_ori[:,np.newaxis]))
 
     return next_state, action_cost
 
@@ -434,7 +494,8 @@ class VisTree:
                  goal_coord,
                  boundary,
                  map_w=1200,
-                 map_h=500) -> None:
+                 map_h=500,
+                 inflate_coef=1.0) -> None:
         """build the visibility tree from the corner points
 
         Args:
@@ -444,7 +505,7 @@ class VisTree:
         Returns:
             _type_: _description_
         """
-        print(f"num of boundary: {len(boundary)}")
+        self.rho = inflate_coef # scale the cog to prefer nodes close to goal
         # first create the root node
         root = VisTreeNode(coord=goal_coord,
                            dist_to_goal=0)
@@ -470,7 +531,6 @@ class VisTree:
                 # skip if in closed list
                 if (c[0],c[1]) in closed:
                     continue
-                print(f"checking {corners[i,:]}")
                 
                 # make sure not on the edge of the map
                 if c[0]==0.0 and t.coord[0]==0.0:
@@ -495,7 +555,6 @@ class VisTree:
                         in_obstacle=True
                         break
                 
-                print(f"on obstacle {in_obstacle}")
                 if in_obstacle:
                     continue
                 
@@ -525,10 +584,115 @@ class VisTree:
             p = v.parent
             if not p:
                 continue
-            print(v.coord, p)
             p.children.append(v)
             
         self.root = root
+
+        # store coord and cost to goal
+        self.coord_array = []
+        self.dist_to_goal_array = []
+
+        q = [self.root]
+        while len(q)>0:
+            t:VisTreeNode = q.pop(0)
+            self.coord_array.append(t.coord)
+            self.dist_to_goal_array.append(t.dist_to_goal)
+            for c in t.children:
+                q.append(c)
+            
+        self.coord_array = np.array(self.coord_array)[np.newaxis,:,:]
+        self.dist_to_goal_array = np.array(self.dist_to_goal_array)
+
+    def compute_cost_to_go_from_root(self,
+                           x_start,y_start,
+                           boundary,
+                           pool):
+        """_summary_
+
+        Returns:
+            _type_: _description_
+        """
+
+        q = [self.root]
+        heapq.heapify(q)
+        dist=0
+        vt_node=None
+        while len(q)>0:
+            t:VisTreeNode = heapq.heappop(q)
+            x_end,y_end = t.coord
+
+            # traverse starting from the root
+            nobs = len(boundary)
+            inputs = zip((x_start,)*nobs,
+                        (y_start,)*nobs,
+                        (x_end,)*nobs,
+                        (y_end,)*nobs,
+                        boundary,
+                        (True,)*nobs)
+            outputs = pool.starmap(within_obstacle,inputs)
+            in_obs=False
+            for out in outputs:
+                in_obs = in_obs|out
+            
+            if not in_obs: # not cross any obstacle
+                dist = np.linalg.norm((x_start-t.coord[0],y_start-t.coord[1]))
+                dist += t.dist_to_goal
+                vt_node = t
+                break
+            else:
+                for c in t.children:
+                    heapq.heappush(q,c)
+        return dist*self.rho,vt_node
+    
+    def compute_cost_to_go_from_current(self,
+                                        curr_node:VisTreeNode,
+                                        x_start,
+                                        y_start,
+                                        boundary,
+                                        pool):
+        """_summary_
+
+        Returns:
+            _type_: _description_
+        """
+
+        # check if we can see parent
+        c=curr_node
+        t:VisTreeNode = c.parent
+        
+        dist=0
+        while t is not None:
+            t:VisTreeNode
+            x_end,y_end = t.coord
+
+            # traverse starting from the root
+            nobs = len(boundary)
+            inputs = zip((x_start,)*nobs,
+                        (y_start,)*nobs,
+                        (x_end,)*nobs,
+                        (y_end,)*nobs,
+                        boundary,
+                        (True,)*nobs)
+            outputs = pool.starmap(within_obstacle,inputs)
+            in_obs=False
+            for out in outputs:
+                if out:
+                    in_obs=True
+                    break
+            
+            if not in_obs: # not cross any obstacle              
+                # go back one level
+                c = t
+                t = t.parent
+            else:
+                # cannot see parent, return dist to current
+                break
+
+        dist = np.linalg.norm((x_start-c.coord[0],y_start-c.coord[1]))
+        dist += c.dist_to_goal
+        vt_node = c
+
+        return dist*self.rho,vt_node
 
 class Astar:
     # implement the Astar search algorithm
@@ -539,28 +703,37 @@ class Astar:
                  goal_coord,
                  goal_ori,
                  map : Map,
+                 vis_tree:VisTree,
                  step_size=10,
                  dtheta=30,
                  coord_res=0.5,
                  savevid=False,
                  vid_res=72):
-        
+        # use multi processing to check for obstacles
+        self.check_pool = multiprocessing.Pool()
+
+        init_dist, init_node = vis_tree.compute_cost_to_go_from_root(
+                                                    init_coord[0],
+                                                    init_coord[1],
+                                                    map.obstacle_boundary,
+                                                    pool=self.check_pool)
         self.init_coord = State(init_coord,
-                                   init_ori,
-                                   cost_to_come=0.0,
-                                   cost_to_go=cost_to_go_l2(init_coord,
-                                                            goal_coord))
+                                init_ori,
+                                cost_to_come=0.0,
+                                cost_to_go=init_dist,
+                                vt_node=init_node)
+        
         self.goal_coord = State(goal_coord,
                                    goal_ori,
                                    cost_to_come=np.inf,
                                    cost_to_go=0.0)
         self.map = map
+        self.vis_tree:VisTree = vis_tree
         self.savevid = savevid
         self.step_size = step_size
         self.dtheta = dtheta
 
-        # use multi processing to check for obstacles
-        self.check_pool = multiprocessing.Pool()
+        
 
         self.open_list = [self.init_coord]
         heapq.heapify(self.open_list)
@@ -626,7 +799,6 @@ class Astar:
         """
         ideg, ih, iw = c.index
         self.closed_list[ideg][ih][iw] = c
-        # self.closed_plot_data[c.y][c.x] = 1
 
     def at_goal(self, c : State):
         """return true if c is at goal coordinate
@@ -634,7 +806,18 @@ class Astar:
         Args:
             c (State): _description_
         """
-        return self.goal_coord.same_state_as(c)
+        dx = c.x-self.goal_coord.x
+        dy = c.y-self.goal_coord.y
+        rad1 = c.orientation/180*np.pi
+        v1 = np.array([np.cos(rad1),np.sin(rad1)])
+
+        rad2 = self.goal_coord.orientation/180*np.pi
+        v2 = np.array([np.cos(rad2),np.sin(rad2)])
+
+        proj = np.inner(v1,v2).item()
+
+        return (np.linalg.norm((dx,dy))<1.5*self.map.inflate_radius)&(proj>0.5)
+
     
     def initiate_coord(self,
                        coord,
@@ -648,11 +831,21 @@ class Astar:
             parent (_type_): _description_
         """
         # create new State obj
+        
+        cog,vt_node = self.vis_tree.compute_cost_to_go_from_current(
+                                               curr_node=parent.vt_node,
+                                               x_start=coord[0],
+                                               y_start=coord[1],
+                                               boundary=\
+                                                self.map.obstacle_boundary,
+                                                pool=self.check_pool)
+        
         new_c = State(coord=coord,
-                         orientation=ori,
-                         cost_to_come=parent.cost_to_come+edge_cost,
-                         cost_to_go=cost_to_go_l2(coord,self.goal_coord),
-                         parent=parent)
+                    orientation=ori,
+                    cost_to_come=parent.cost_to_come+edge_cost,
+                    cost_to_go=cog,
+                    parent=parent,
+                    vt_node=vt_node)
         
         # push to open list heaqp
         heapq.heappush(self.open_list, new_c)
@@ -739,18 +932,8 @@ class Astar:
         """visualize the result of backtrack
         """
         path = np.array(self.path_to_goal)
-        plt.plot(path[:,0],path[:,1],color='r',marker="o",linewidth=1.5,ms=5)
+        plt.plot(path[:,0],path[:,1],color='r',marker="o",linewidth=1.5,ms=3)
 
-        # n = path.shape[0]
-        # ind = np.linspace(0,n-1,50).astype(int)
-        # for i in ind:
-        #     self.robot_plot.set_data([path[i,0],],[path[i,1],])
-        #     self.fig.canvas.flush_events()
-        #     self.fig.canvas.draw()
-        #     if self.savevid:
-        #         self.writer.grab_frame()
-        #     plt.pause(0.001)
-        
         # add some more static frames with the robot at goal
         for _ in range(40):
             plt.pause(0.005)
@@ -821,7 +1004,7 @@ class Astar:
 
             # visualize the result at some fixed interval
             i+=1
-            if i%200==0:
+            if i%10==0:
                 self.visualize_search()
         
         if self.goal_reached:
@@ -894,14 +1077,24 @@ if __name__ == "__main__":
     for c in obs_corners:
         custom_map.add_obstacle(corners=c)
 
+    corners = custom_map.get_obstacle_corners_array(omit=[(3,2),
+                                                          (4,1),
+                                                          (4,2),
+                                                          (5,1)])
+    custom_map.compute_obstacle_map()
+
     # ask user for init and goal position
     # init_coord,init_ori = ask_for_coord(custom_map, mode="initial")
     # goal_coord,goal_ori = ask_for_coord(custom_map, mode="goal")
         
-    init_coord = (10,10)
-    init_ori = 0
-    goal_coord = (225,300)
-    goal_ori = 60
+    init_coord = (10,300)
+    init_ori = -90
+    goal_coord = (1150,250)
+    goal_ori = -60
+
+    vt = VisTree(corners=corners,goal_coord=goal_coord,
+             boundary=custom_map.obstacle_boundary,
+             inflate_coef=1.1)
 
     # create Astar solver
     a = Astar(init_coord=init_coord,
@@ -909,9 +1102,11 @@ if __name__ == "__main__":
               goal_coord=goal_coord,
               goal_ori=goal_ori,
               map=custom_map,
-              step_size=30,
+              vis_tree=vt,
+              step_size=20,
               savevid=savevid,
-              vid_res=args.dpi)
+              vid_res=args.dpi,
+              )
 
     # run the algorithm
     a.run()
