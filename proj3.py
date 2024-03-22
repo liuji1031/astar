@@ -1083,6 +1083,8 @@ if __name__ == "__main__":
                         help="resolution of the video saved")
     parser.add_argument("--rr", type=int, default=5,
                         help="robot radius")
+    parser.add_argument("--cogw", type=float, default=1.0,
+                        help="additional weight of cost to go, default to 1.0")
     args = parser.parse_args()
     savevid = args.savevid
     rr = args.rr
@@ -1127,7 +1129,7 @@ if __name__ == "__main__":
 
     vt = VisTree(corners=corners,goal_coord=goal_coord,
              boundary=custom_map.obstacle_boundary_inflate,
-             inflate_coef=1.05)
+             inflate_coef=args.cogw)
     
     # create Astar solver
     a = Astar(init_coord=init_coord,
