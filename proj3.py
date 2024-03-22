@@ -118,11 +118,12 @@ class Map:
         self.map_inflate = np.zeros_like(self.map)
         self.inflate_radius = inflate_radius
         self.obstacle_corners = []
+        self.obstacle_corners_inflate = []
         self.obstacle_boundary = []
         self.obstacle_boundary_inflate = []
         self.obstacle_map = None
 
-    def add_obstacle(self, corners : np.ndarray):
+    def add_obstacle(self, corners_tuple):
         """add obstacle defined by the corner points. the corners should define
         a convex region, not non-convex ones. for non-convex obstacles, need to 
         define it in terms of the union of the convex parts. 
@@ -135,6 +136,8 @@ class Map:
         Returns:
             _type_: _description_
         """
+        corners = corners_tuple[0]
+        corners_inflate = corners_tuple[1]
         obs_map = np.zeros((self.height, self.width),dtype=np.int8)
         obs_map_inflate = np.zeros_like(obs_map)
 
@@ -148,6 +151,7 @@ class Map:
 
         # add to the list of obstacle corners
         self.obstacle_corners.append(corners)
+        self.obstacle_corners_inflate.append(corners_inflate)
 
         n = corners.shape[0]
         boundary = []
@@ -272,14 +276,15 @@ class Map:
             return False
         
     def get_obstacle_corners_array(self,
-                                   omit=[]):
+                                   omit=[],
+                                   correction=dict()):
         """returns an numpy array of all obstacle corners
 
         Returns:
             _type_: _description_
         """
         out = []
-        for i, corners in enumerate(self.obstacle_corners):
+        for i, corners in enumerate(self.obstacle_corners_inflate):
             corners:np.ndarray
             for j in range(corners.shape[0]):
                 skip=False
@@ -288,11 +293,13 @@ class Map:
                         skip=True
                         break
                 if not skip:
-                    out.append(corners[j,:])
+                    if (i,j) in correction:
+                        out.append(corners[j,:]+np.array(correction[(i,j)]))
+                    else:
+                        out.append(corners[j,:])
         return np.array(out)
     
-    @staticmethod
-    def get_corners_hex(center, radius):
+    def get_corners_hex(self,center, radius):
         """get the hexagon corner points
 
         Args:
@@ -303,13 +310,20 @@ class Map:
             _type_: _description_
         """
         theta = np.pi/2 + np.linspace(0., -2*np.pi, 6, endpoint=False)
-        return np.hstack([
-            (center[0]+radius*np.cos(theta))[:,np.newaxis],
-            (center[1]+radius*np.sin(theta))[:,np.newaxis],
-        ])
+        radius_inflate = radius + self.inflate_radius/np.sqrt(3)*2
+
+        corners = np.hstack([
+                    (center[0]+radius*np.cos(theta))[:,np.newaxis],
+                    (center[1]+radius*np.sin(theta))[:,np.newaxis],
+                    ])
+        corners_inflate = np.hstack([
+                    (center[0]+radius_inflate*np.cos(theta))[:,np.newaxis],
+                    (center[1]+radius_inflate*np.sin(theta))[:,np.newaxis],
+                    ])
+        return (corners, corners_inflate)
     
-    @staticmethod
-    def get_corners_rect(upper_left,
+    def get_corners_rect(self,
+                         upper_left,
                          w,
                          h):
         """return the 4 corners of a rectangle in clockwise order
@@ -328,7 +342,20 @@ class Map:
                             [0,-h]
                            ])
         corners += np.array([upper_left[0],upper_left[1]])[np.newaxis,:]
-        return corners
+
+        r = self.inflate_radius
+        corners_inflate = corners+np.array([[-r,+r],
+                                            [+r,+r],
+                                            [+r,-r],
+                                            [-r,-r]
+                                        ])
+        for i in range(4):
+            corners_inflate[i,0] = max(0,corners_inflate[i,0])
+            corners_inflate[i,0] = min(self.width,corners_inflate[i,0])
+            corners_inflate[i,1] = max(0,corners_inflate[i,1])
+            corners_inflate[i,1] = min(self.height,corners_inflate[i,1])
+
+        return (corners, corners_inflate)
 
 def round_to_precision(data,
                         precision=0.5):
@@ -505,6 +532,7 @@ class VisTree:
         Returns:
             _type_: _description_
         """
+        self.boundary = boundary
         self.rho = inflate_coef # scale the cog to prefer nodes close to goal
         # first create the root node
         root = VisTreeNode(coord=goal_coord,
@@ -605,7 +633,6 @@ class VisTree:
 
     def compute_cost_to_go_from_root(self,
                            x_start,y_start,
-                           boundary,
                            pool):
         """_summary_
 
@@ -622,12 +649,12 @@ class VisTree:
             x_end,y_end = t.coord
 
             # traverse starting from the root
-            nobs = len(boundary)
+            nobs = len(self.boundary)
             inputs = zip((x_start,)*nobs,
                         (y_start,)*nobs,
                         (x_end,)*nobs,
                         (y_end,)*nobs,
-                        boundary,
+                        self.boundary,
                         (True,)*nobs)
             outputs = pool.starmap(within_obstacle,inputs)
             in_obs=False
@@ -648,7 +675,6 @@ class VisTree:
                                         curr_node:VisTreeNode,
                                         x_start,
                                         y_start,
-                                        boundary,
                                         pool):
         """_summary_
 
@@ -666,12 +692,12 @@ class VisTree:
             x_end,y_end = t.coord
 
             # traverse starting from the root
-            nobs = len(boundary)
+            nobs = len(self.boundary)
             inputs = zip((x_start,)*nobs,
                         (y_start,)*nobs,
                         (x_end,)*nobs,
                         (y_end,)*nobs,
-                        boundary,
+                        self.boundary,
                         (True,)*nobs)
             outputs = pool.starmap(within_obstacle,inputs)
             in_obs=False
@@ -715,7 +741,6 @@ class Astar:
         init_dist, init_node = vis_tree.compute_cost_to_go_from_root(
                                                     init_coord[0],
                                                     init_coord[1],
-                                                    map.obstacle_boundary,
                                                     pool=self.check_pool)
         self.init_coord = State(init_coord,
                                 init_ori,
@@ -816,7 +841,7 @@ class Astar:
 
         proj = np.inner(v1,v2).item()
 
-        return (np.linalg.norm((dx,dy))<1.5*self.map.inflate_radius)&(proj>0.5)
+        return (np.linalg.norm((dx,dy))<0.5*self.map.inflate_radius)&(proj>0.5)
 
     
     def initiate_coord(self,
@@ -836,9 +861,7 @@ class Astar:
                                                curr_node=parent.vt_node,
                                                x_start=coord[0],
                                                y_start=coord[1],
-                                               boundary=\
-                                                self.map.obstacle_boundary,
-                                                pool=self.check_pool)
+                                               pool=self.check_pool)
         
         new_c = State(coord=coord,
                     orientation=ori,
@@ -1062,28 +1085,36 @@ if __name__ == "__main__":
                         help="robot radius")
     args = parser.parse_args()
     savevid = args.savevid
-
+    rr = args.rr
     # create map object
     custom_map = Map(inflate_radius=args.rr)
 
     # define the corners of all the convex obstacles
     obs_corners = []
-    obs_corners.append(Map.get_corners_rect(upper_left=(100,500),w=75,h=400))
-    obs_corners.append(Map.get_corners_rect(upper_left=(275,400),w=75,h=400))
-    obs_corners.append(Map.get_corners_hex(center=(650,250),radius=150))
-    obs_corners.append(Map.get_corners_rect(upper_left=(900,450),w=200,h=75))
-    obs_corners.append(Map.get_corners_rect(upper_left=(1020,375),w=80,h=250))
-    obs_corners.append(Map.get_corners_rect(upper_left=(900,125),w=200,h=75))
+    obs_corners.append(custom_map.get_corners_rect(
+                                            upper_left=(100,500),w=75,h=400))
+    obs_corners.append(custom_map.get_corners_rect(
+                                            upper_left=(275,400),w=75,h=400))
+    obs_corners.append(custom_map.get_corners_hex(
+                                            center=(650,250),radius=150))
+    obs_corners.append(custom_map.get_corners_rect(
+                                            upper_left=(900,450),w=200,h=75))
+    obs_corners.append(custom_map.get_corners_rect(
+                                            upper_left=(1020,375),w=80,h=250))
+    obs_corners.append(custom_map.get_corners_rect(
+                                            upper_left=(900,125),w=200,h=75))
 
     # add all obstacles to map
     for c in obs_corners:
-        custom_map.add_obstacle(corners=c)
+        custom_map.add_obstacle(corners_tuple=c)
 
     corners = custom_map.get_obstacle_corners_array(omit=[(3,2),
                                                           (4,1),
                                                           (4,2),
-                                                          (5,1)])
-    custom_map.compute_obstacle_map()
+                                                          (5,1)],
+                                                correction={(4,0):[0,-rr*2],
+                                                (4,3):[0,rr*2]})
+    # custom_map.compute_obstacle_map()
 
     # ask user for init and goal position
     # init_coord,init_ori = ask_for_coord(custom_map, mode="initial")
@@ -1091,13 +1122,13 @@ if __name__ == "__main__":
         
     init_coord = (10,300)
     init_ori = -90
-    goal_coord = (850,100)
-    goal_ori = -60
+    goal_coord = (1150,100)
+    goal_ori = 90
 
     vt = VisTree(corners=corners,goal_coord=goal_coord,
-             boundary=custom_map.obstacle_boundary,
-             inflate_coef=1.1)
-
+             boundary=custom_map.obstacle_boundary_inflate,
+             inflate_coef=1.05)
+    
     # create Astar solver
     a = Astar(init_coord=init_coord,
               init_ori=init_ori,
