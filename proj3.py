@@ -225,7 +225,7 @@ class Map:
         """
         plt.imshow(self.map+self.map_inflate,cmap="gray_r",vmax=8)
         plt.gca().invert_yaxis()
-        plt.colorbar(shrink=0.3)
+        # plt.colorbar(shrink=0.3)
         if show:
             plt.show()
 
@@ -841,7 +841,7 @@ class Astar:
 
         proj = np.inner(v1,v2).item()
 
-        return (np.linalg.norm((dx,dy))<0.5*self.map.inflate_radius)&(proj>0.5)
+        return (np.linalg.norm((dx,dy))<1.5*self.map.inflate_radius)&(proj>0.5)
 
     
     def initiate_coord(self,
@@ -1057,8 +1057,8 @@ def ask_for_coord(map:Map, mode="initial"):
         msg (_type_): _description_
     """
     while True:
-        x = input(f"Please input {mode} coordinate x: ")
-        y = input(f"Please input {mode} coordinate y: ")
+        x = float(input(f"Please input {mode} coordinate x: "))
+        y = float(input(f"Please input {mode} coordinate y: "))
 
         if x<0 or x>=map.width or y<0 or y>=map.height:
             print("Coordinate out of range of map, please try again")
@@ -1068,7 +1068,7 @@ def ask_for_coord(map:Map, mode="initial"):
             print("Coordinate within obstacle, please try again")
             continue
 
-        ori = input(f"Please input {mode} orientation (degrees): ")
+        ori = float(input(f"Please input {mode} orientation (degrees): "))
         ori = int(ori/30)*30
         
         break
@@ -1110,22 +1110,22 @@ if __name__ == "__main__":
     for c in obs_corners:
         custom_map.add_obstacle(corners_tuple=c)
 
+    # get the inflated obstacle corners
     corners = custom_map.get_obstacle_corners_array(omit=[(3,2),
                                                           (4,1),
                                                           (4,2),
                                                           (5,1)],
                                                 correction={(4,0):[0,-rr*2],
                                                 (4,3):[0,rr*2]})
-    # custom_map.compute_obstacle_map()
 
     # ask user for init and goal position
-    # init_coord,init_ori = ask_for_coord(custom_map, mode="initial")
-    # goal_coord,goal_ori = ask_for_coord(custom_map, mode="goal")
+    init_coord,init_ori = ask_for_coord(custom_map, mode="initial")
+    goal_coord,goal_ori = ask_for_coord(custom_map, mode="goal")
         
-    init_coord = (10,300)
-    init_ori = -90
-    goal_coord = (1150,100)
-    goal_ori = 90
+    # init_coord = (5,100)
+    # init_ori = -90
+    # goal_coord = (800,200)
+    # goal_ori = -90
 
     vt = VisTree(corners=corners,goal_coord=goal_coord,
              boundary=custom_map.obstacle_boundary_inflate,
