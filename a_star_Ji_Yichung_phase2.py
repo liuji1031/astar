@@ -27,13 +27,19 @@ class Action:
         vel_sum = self.v_l+self.v_r
         vel_diff = self.v_l-self.v_r
         if vel_diff != 0:
+            self.ang_vel = 2*np.abs(vel_diff)/Action.D
+            self.dyaw = self.ang_vel*self.dt
             self.turn_radius = Action.D/2*vel_sum/np.abs(vel_diff)
-
+            self.cost = self.turn_radius*self.dyaw
         else:
+            self.ang_vel = 0.
+            self.dyaw = 0.
             self.turn_radius = None
-        self.ang_vel = 2*np.abs(vel_diff)/Action.D
-        self.dyaw = self.ang_vel*self.dt
-    
+            self.cost = self.v_l*self.dt
+
+        # generate array of points for plotting
+        
+        
     def apply(self, init_pose):
         """apply the action to get final pose
 
@@ -47,7 +53,7 @@ class Action:
             new_pose = self.straight_motion(init_pose)
             center_rot = None
         
-        return new_pose, center_rot
+        return new_pose, center_rot, self.cost
     
     def curve_motion(self, init_pose):
         """apply curved motion to the init pose
@@ -104,12 +110,8 @@ def wrap(rad):
     return rad
 
 def collision_check_curve(pose,
-                          v_l,
-                          v_r,
-                          cx,
-                          cy,
-                          turn_radius,
-                          dyaw,
+                          action:Action,
+                          center_rot,
                           boundaries):
     """this function check if the curved path the robot is on will collide 
     with obstacles
@@ -121,22 +123,20 @@ def collision_check_curve(pose,
         projection value defining the boundary
     """
     x,y,yaw = pose
-    
+    cx,cy = center_rot
     min_val = 0.0
-    max_val = dyaw
+    max_val = action.dyaw
 
-    if v_r>v_l: # turn towards left
+    if action.v_r>action.v_l: # turn towards left
         phi0 = yaw-np.pi/2
     else: # turn towards right
         phi0 = yaw+np.pi/2
     # compute center of rotation
     cp = np.cos(phi0)
     sp = np.sin(phi0)
-    cx = x-turn_radius*cp
-    cy = y-turn_radius*sp
 
-    if v_l>v_r:
-        phi0-=dyaw
+    if action.v_l>action.v_r:
+        phi0-=action.dyaw
     # print(cx,cy,phi0/np.pi*180)
 
     for ib,b in enumerate(boundaries):
@@ -152,7 +152,7 @@ def collision_check_curve(pose,
             ny_ = -sp*nx+cp*ny
             theta_hat = wrap(np.arctan2(ny_,nx_))
             # print("theta hat: ",theta_hat/np.pi*180)
-            rho = proj_/turn_radius
+            rho = proj_/action.turn_radius
             
             if rho>=1:
                 # print("condition 1, full range")
@@ -201,7 +201,7 @@ def collison_check_line_seg(x_start,y_start,
     intersection = []
     for i in range(n):
         # get normal direction
-        normal,p = boundary[i]
+        normal,p = boundary[i]["normal"],boundary[i]["proj"]
 
         # find the meshgrid points whose projections are <= p
         p1 = np.inner((x_start,y_start), normal)
@@ -355,8 +355,10 @@ class Map:
             obs_map_inflate += np.where(proj_all<=p+self.inflate_radius,1,0)
 
             # record the boundary and projection value
-            boundary.append([normal,p])
-            boundary_inflate.append([normal,p+self.inflate_radius])
+            boundary.append(dict(type="polygon",normal=normal,proj=p))
+            boundary_inflate.append(dict(type="polygon",
+                                         normal=normal,
+                                         proj=p+self.inflate_radius))
         
         self.obstacle_boundary.append(boundary)
         self.obstacle_boundary_inflate.append(boundary_inflate)
@@ -418,9 +420,12 @@ class Map:
         else:
             return False
 
-    def check_obstacle(self, x_start, y_start,
-                       x_end, y_end,
-                       pool=None):
+    def check_obstacle_line_seg(self,
+                                x_start,
+                                y_start,
+                                x_end,
+                                y_end,
+                                pool=None):
         """go through all obstacles to check if x,y is within any one of them
 
         Args:
@@ -446,6 +451,40 @@ class Map:
                          (y_end,)*nobs,
                          self.obstacle_boundary_inflate)
             outputs = pool.starmap(collison_check_line_seg,inputs)
+
+            for out in outputs:
+                if out:
+                    return True
+            return False
+    
+    def check_obstacle_curve(self,
+                            curr_pose,
+                            action:Action,
+                            center_rot,
+                            pool=None):
+        """go through all obstacles to check if x,y is within any one of them
+
+        Args:
+            x (_type_): _description_
+            y (_type_): _description_
+        """
+        if pool is None:
+            for boundary in self.obstacle_boundary_inflate:
+                # returns true if within any obstacle
+                if collision_check_curve(pose=curr_pose,
+                                         action=action,
+                                         center_rot=center_rot,
+                                         boundaries=boundary):
+                    return True
+            return False
+        else:
+            # use parallel pool to speed things up
+            nobs = len(self.obstacle_corners)
+            inputs = zip((curr_pose,)*nobs,
+                         (action,)*nobs,
+                         (center_rot,)*nobs,
+                         self.obstacle_boundary_inflate)
+            outputs = pool.starmap(collision_check_curve,inputs)
 
             for out in outputs:
                 if out:
@@ -563,6 +602,7 @@ class State:
                  cost_to_come,
                  cost_to_go=None,
                  parent=None,
+                 parent_action=None,
                  vt_node=None) -> None:
 
         self.coord = round_to_precision(coord,precision=State.xy_res)
@@ -572,6 +612,8 @@ class State:
         self.cost_to_go = cost_to_go
         self.estimated_cost = self.cost_to_come+self.cost_to_go
         self.parent = parent
+        self.parent_action=parent_action # the action taken by the parent to
+                                         # arrive at the child node
         self.vt_node = vt_node
 
     def __lt__(self, other):
@@ -912,8 +954,6 @@ class Astar:
                  vis_tree:VisTree,
                  rpms=[50,100],
                  step_size=10,
-                 dtheta=3,
-                 coord_res=0.5,
                  savevid=False,
                  vid_res=72,
                  goal_ori=None,
@@ -939,15 +979,14 @@ class Astar:
         self.vis_tree:VisTree = vis_tree
         self.savevid = savevid
         self.step_size = step_size
-        self.dtheta = dtheta
 
         self.open_list = [self.init_coord]
         heapq.heapify(self.open_list)
         # use a dictionary to track which coordinate has been added to the open
         # list
-        ndeg = int(360/self.dtheta)
-        nw = int(map.width/coord_res)+1
-        nh = int(map.height/coord_res)+1
+        ndeg = int(2*np.pi/State.rad_res)
+        nw = int(map.width/State.xy_res)+1
+        nh = int(map.height/State.xy_res)+1
         self.open_list_added = [ [[None]*nw for j in range(nh)] \
                                   for k in range(ndeg)
                                ]
@@ -1178,30 +1217,43 @@ class Astar:
             
             # not at goal, go through reachable point from c
             # apply the motion model
-            next_states, action_costs = motion_model_proj3(curr_coord=[c.x,c.y],
-                                                        curr_ori=c.orientation,
-                                                        L=self.step_size)
-            for next_state, cost in zip(next_states,action_costs):
-                x,y,ori = next_state
 
+            for a in self.actions:
+                a : Action
+                next_pose,center_rot,cost = a.apply(init_pose=(c.x,
+                                                          c.y,
+                                                          c.orientation)
+                                            )
+                
+                # check within the map or not
+                x,y,ori = next_pose
                 if not self.map.in_range(x,y):
                     continue
-
-                ideg = int(ori/self.dtheta)
-                ih = int(y/0.5)
-                iw = int(x/0.5)
-                self.map : Map
-
-                # skip if new coord in closed list already
+                
+                # check if in closed list
+                ideg = int(ori/State.rad_res)
+                ih = int(y/State.xy_res)
+                iw = int(x/State.xy_res)
                 if self.closed_list[ideg][ih][iw]:
                     continue
 
-                # skip if overlap with obstacle
-                if self.map.check_obstacle(x_start=c.x,
-                                            y_start=c.y,
-                                            x_end=x,
-                                            y_end=y,
-                                            pool=self.check_pool):
+                # check obstacle
+                if a.v_l == a.v_r:
+                    # check line segment
+                    collide = self.map.check_obstacle_line_seg(
+                                                        x_start=c.x,
+                                                        y_start=c.y,
+                                                        x_end=x,
+                                                        y_end=y,
+                                                        pool=self.check_pool)
+                else:
+                    # check curves
+                    collide = self.map.check_obstacle_curve(curr_pose=next_pose,
+                                                        action=a,
+                                                        center_rot=center_rot,
+                                                        pool=self.check_pool)
+                    
+                if collide:
                     continue
 
                 if not self.open_list_added[ideg][ih][iw]:
@@ -1217,6 +1269,29 @@ class Astar:
                     if new_cost_to_come < next_s.cost_to_come:
                         next_s.update(new_cost_to_come,c)
                         heapq.heapify(self.open_list)
+
+
+            
+            for next_state, cost in zip(next_states,action_costs):
+                x,y,ori = next_state
+
+                
+
+                
+                self.map : Map
+
+                # skip if new coord in closed list already
+                
+
+                # skip if overlap with obstacle
+                if self.map.check_obstacle(x_start=c.x,
+                                            y_start=c.y,
+                                            x_end=x,
+                                            y_end=y,
+                                            pool=self.check_pool):
+                    continue
+
+                
 
             # visualize the result at some fixed interval
             i+=1
