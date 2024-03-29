@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FFMpegWriter
 
 class Action:
-    radius_wheel = 0.033 # diameter 66 mm
-    D = 0.287 # distance between two wheels
+    radius_wheel = 33 # diameter 66 mm
+    D = 287 # distance between two wheels
 
     def __init__(self, rpm_left, rpm_right,
                  dt=0.1) -> None:
@@ -182,7 +182,7 @@ def collision_check_curve(pose,
     # if non empty intersection, the curve intersects with the obstacle
     return min_val<=max_val
 
-def within_obstacle(x_start,y_start,
+def collison_check_line_seg(x_start,y_start,
                     x_end,y_end,
                     boundary,
                     exclude_boundary=False):
@@ -243,7 +243,7 @@ def within_obstacle(x_start,y_start,
         # okay if min_val takes 0 and max_val takes 1
         return (min_val<max_val-1e-8)
 
-def within_obstacle_point(coord,
+def collison_check_point(coord,
                     boundary):
     """check if the line segment defined by (x_start,y_start),(x_end, y_end) is 
     within the obstacle defined by the corners
@@ -387,7 +387,7 @@ class Map:
         xy_array = np.hstack((xs.reshape((-1,1)),ys.reshape((-1,1))))
         out = None
         for b in self.obstacle_boundary_inflate:
-            tmp = within_obstacle_point(xy_array, b)
+            tmp = collison_check_point(xy_array, b)
             if out is None:
                 out = tmp
             else:
@@ -430,7 +430,7 @@ class Map:
         if pool is None:
             for boundary in self.obstacle_boundary_inflate:
                 # returns true if within any obstacle
-                if within_obstacle(x_start,
+                if collison_check_line_seg(x_start,
                                    y_start,
                                    x_end,
                                    y_end,
@@ -445,7 +445,7 @@ class Map:
                          (x_end,)*nobs,
                          (y_end,)*nobs,
                          self.obstacle_boundary_inflate)
-            outputs = pool.starmap(within_obstacle,inputs)
+            outputs = pool.starmap(collison_check_line_seg,inputs)
 
             for out in outputs:
                 if out:
@@ -453,8 +453,8 @@ class Map:
             return False
         
     def get_obstacle_corners_array(self,
-                                   omit=[],
-                                   correction=dict()):
+                                   omit,
+                                   correction):
         """returns an numpy array of all obstacle corners
 
         Returns:
@@ -535,7 +535,7 @@ class Map:
         return (corners, corners_inflate)
 
 def round_to_precision(data,
-                        precision=0.5):
+                       precision=0.5):
     """round the coordinate according to the requirement, e.g., 0.5
 
     Args:
@@ -543,11 +543,11 @@ def round_to_precision(data,
         precision (float, optional): _description_. Defaults to 0.5.
     """
     if isinstance(data, tuple):
-        x_ = np.round(data[0]/0.5)*0.5
-        y_ = np.round(data[1]/0.5)*0.5
+        x_ = np.round(data[0]/precision)*precision
+        y_ = np.round(data[1]/precision)*precision
         return (x_,y_)
     else:
-        return np.round(data/0.5)*0.5
+        return np.round(data/precision)*precision
 
 class State:
     """create a custom class to represent each map coordinate.
@@ -555,6 +555,8 @@ class State:
     for this purpose, the <, > and = operations are overridden
 
     """
+    xy_res = 0.5
+    rad_res = 3.0/180.0*np.pi
     def __init__(self,
                  coord,
                  orientation,
@@ -562,9 +564,10 @@ class State:
                  cost_to_go=None,
                  parent=None,
                  vt_node=None) -> None:
-        self.coord = round_to_precision(coord)
-        # orientation: discrete value for this problem, i.e., 30, 60 etc
-        self.orientation = orientation
+
+        self.coord = round_to_precision(coord,precision=State.xy_res)
+        self.orientation = round_to_precision(wrap(orientation),
+                                              precision=State.rad_res)
         self.cost_to_come = cost_to_come
         self.cost_to_go = cost_to_go
         self.estimated_cost = self.cost_to_come+self.cost_to_go
@@ -595,7 +598,7 @@ class State:
         proj = np.inner(v1,v2).item()
 
         if not ignore_ori:
-            return (np.linalg.norm((dx,dy))<1.5) & (proj>0)
+            return (np.linalg.norm((dx,dy))<1e-3) & (proj>0.95)
         else:
             return np.linalg.norm((dx,dy))<1e-3
     
@@ -614,9 +617,9 @@ class State:
     
     @property
     def index(self):
-        ideg = int(self.orientation/30)
-        iw = int(self.x/0.5)
-        ih = int(self.y/0.5)
+        ideg = int(self.orientation/State.rad_res)
+        iw = int(self.x/State.xy_res)
+        ih = int(self.y/State.xy_res)
         return ideg, ih, iw
     
 def cost_to_go_l2(state1, state2):
@@ -752,10 +755,11 @@ class VisTree:
 
                 # check obstacles
                 for ib,b in enumerate(boundary):
-                    out = within_obstacle(x_start=t.coord[0],y_start=t.coord[1],
-                                    x_end=c[0],y_end=c[1],
-                                    boundary=b,
-                                    exclude_boundary=True)
+                    out = collison_check_line_seg(x_start=t.coord[0],
+                                                  y_start=t.coord[1],
+                                                x_end=c[0],y_end=c[1],
+                                                boundary=b,
+                                                exclude_boundary=True)
                     if out:
                         in_obstacle=True
                         break
@@ -833,7 +837,7 @@ class VisTree:
                         (y_end,)*nobs,
                         self.boundary,
                         (True,)*nobs)
-            outputs = pool.starmap(within_obstacle,inputs)
+            outputs = pool.starmap(collison_check_line_seg,inputs)
             in_obs=False
             for out in outputs:
                 in_obs = in_obs|out
@@ -876,7 +880,7 @@ class VisTree:
                         (y_end,)*nobs,
                         self.boundary,
                         (True,)*nobs)
-            outputs = pool.starmap(within_obstacle,inputs)
+            outputs = pool.starmap(collison_check_line_seg,inputs)
             in_obs=False
             for out in outputs:
                 if out:
@@ -904,14 +908,16 @@ class Astar:
                  init_coord,
                  init_ori,
                  goal_coord,
-                 goal_ori,
                  map : Map,
                  vis_tree:VisTree,
+                 rpms=[50,100],
                  step_size=10,
-                 dtheta=30,
+                 dtheta=3,
                  coord_res=0.5,
                  savevid=False,
-                 vid_res=72):
+                 vid_res=72,
+                 goal_ori=None,
+                 dt=0.1):
         # use multi processing to check for obstacles
         self.check_pool = multiprocessing.Pool()
 
@@ -926,16 +932,14 @@ class Astar:
                                 vt_node=init_node)
         
         self.goal_coord = State(goal_coord,
-                                   goal_ori,
-                                   cost_to_come=np.inf,
-                                   cost_to_go=0.0)
+                                goal_ori,
+                                cost_to_come=np.inf,
+                                cost_to_go=0.0)
         self.map = map
         self.vis_tree:VisTree = vis_tree
         self.savevid = savevid
         self.step_size = step_size
         self.dtheta = dtheta
-
-        
 
         self.open_list = [self.init_coord]
         heapq.heapify(self.open_list)
@@ -956,6 +960,16 @@ class Astar:
 
         self.goal_reached = False
         self.path_to_goal = None
+
+        # create the list of actions
+        self.actions = []
+        rpms = [0.0,*rpms]
+        for rpm_l in rpms:
+            for rpm_r in rpms:
+                self.actions.append(Action(rpm_left=rpm_l,
+                                           rpm_right=rpm_r,
+                                           dt=dt)
+                                    )
         
         # create the handles for the plots
         self.fig = plt.figure(figsize=(12,6))
@@ -1244,9 +1258,11 @@ def ask_for_coord(map:Map, mode="initial"):
         if map.map_inflate[int(y),int(x)] > 0:
             print("Coordinate within obstacle, please try again")
             continue
-
-        ori = float(input(f"Please input {mode} orientation (degrees): "))
-        ori = int(ori/30)*30
+        
+        if mode=="initial":
+            ori=float(input(f"Please input {mode} orientation (degrees): "))
+        else:
+            ori=None
         
         break
     return (x,y), ori
@@ -1258,7 +1274,7 @@ if __name__ == "__main__":
                         help="whether to save the demo as video")
     parser.add_argument("--dpi", type=int, default=72,
                         help="resolution of the video saved")
-    parser.add_argument("--rr", type=int, default=5,
+    parser.add_argument("--rr", type=int, default=220,
                         help="robot radius")
     parser.add_argument("--step", type=int, default=20,
                         help="robot radius")
