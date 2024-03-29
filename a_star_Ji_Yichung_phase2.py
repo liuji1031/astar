@@ -10,11 +10,22 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FFMpegWriter
 
 class Action:
-    radius_wheel = 33 # diameter 66 mm
-    D = 287 # distance between two wheels
+    radius_wheel_tb = 33 # diameter 66 mm
+    D_tb = 287 # distance between two wheels
+
+    radius_wheel_sim = 5
+    D_sim = 10
 
     def __init__(self, rpm_left, rpm_right,
-                 dt=0.1) -> None:
+                 dt=0.1,
+                 use_sim=True) -> None:
+        if use_sim:
+            radius_wheel = Action.radius_wheel_sim
+            D = Action.D_sim
+        else:
+            radius_wheel = Action.radius_wheel_tb
+            D = Action.D_tb
+
         self.rpm_left = rpm_left
         self.rpm_right = rpm_right
         self.dt = dt
@@ -22,15 +33,15 @@ class Action:
         self.w_l = 2*np.pi/60.0*rpm_left
         self.w_r = 2*np.pi/60.0*rpm_right # angular vel of left and
                                                        # right wheel
-        self.v_l = self.w_l*Action.radius_wheel
-        self.v_r = self.w_r*Action.radius_wheel
+        self.v_l = self.w_l*radius_wheel
+        self.v_r = self.w_r*radius_wheel
         vel_sum = self.v_l+self.v_r
         vel_diff = self.v_l-self.v_r
         if vel_diff != 0:
-            self.ang_vel = 2*np.abs(vel_diff)/Action.D
+            self.ang_vel = -2*vel_diff/D
             self.dyaw = self.ang_vel*self.dt
-            self.turn_radius = Action.D/2*vel_sum/np.abs(vel_diff)
-            self.cost = self.turn_radius*self.dyaw
+            self.turn_radius = D/2*vel_sum/np.abs(vel_diff)
+            self.cost = self.turn_radius*np.abs(self.dyaw)
         else:
             self.ang_vel = 0.
             self.dyaw = 0.
@@ -38,7 +49,34 @@ class Action:
             self.cost = self.v_l*self.dt
 
         # generate array of points for plotting
+        if vel_diff == 0:
+            L = self.cost
+            xs = np.linspace(0,L,2,endpoint=True)[:,np.newaxis]
+            ys = np.zeros_like(xs)
+            self.traj = np.hstack((xs,ys))
+            self.cx=None
+            self.cy=None
+        else:
+            if self.v_l > self.v_r: # turn right
+                phi0 = np.pi/2
+                cx=0.0
+                cy=-1*self.turn_radius
+            else:
+                phi0 = -np.pi/2
+                cx=0.0
+                cy=self.turn_radius
+
+            phi1 = phi0+self.dyaw
+            ts = np.linspace(phi0,phi1,10)
+            xs = cx+self.turn_radius*np.cos(ts)
+            ys = cy+self.turn_radius*np.sin(ts)
+
+            self.traj = np.hstack((xs[:,np.newaxis],ys[:,np.newaxis]))
+            self.cx=cx
+            self.cy=cy
         
+        self.plt_pts = np.hstack((self.traj,
+                                  np.ones(self.traj.shape[0])[:,np.newaxis]))
         
     def apply(self, init_pose):
         """apply the action to get final pose
@@ -63,20 +101,17 @@ class Action:
         """
         x0,y0,yaw0 = init_pose
 
-        if self.v_r>self.v_l: # turn towards left
-            phi0 = yaw0-np.pi/2
-        else: # turn towards right
-            phi0 = yaw0+np.pi/2
-        # compute center of rotation
-        cp = np.cos(phi0)
-        sp = np.sin(phi0)
-        cx = x0-self.turn_radius*cp
-        cy = y0-self.turn_radius*sp
+        cyaw0 = np.cos(yaw0)
+        syaw0 = np.sin(yaw0)
 
-        phi1 = phi0+self.dyaw*(self.v_r>self.v_l)
-        x1 = cx+self.turn_radius*np.cos(phi1)
-        y1 = cy+self.turn_radius*np.sin(phi1)
-        yaw1 = yaw0+self.dyaw*(self.v_r>self.v_l)
+        x1b,y1b = self.traj[-1,:]
+
+        x1 = cyaw0*x1b-syaw0*y1b+x0
+        y1 = syaw0*x1b+cyaw0*y1b+y0
+        yaw1 = wrap(yaw0+self.dyaw)
+
+        cx = cyaw0*self.cx-syaw0*self.cy+x0
+        cy = syaw0*self.cx+cyaw0*self.cy+y0
 
         return (x1,y1,yaw1),(cx,cy)
     
@@ -88,11 +123,24 @@ class Action:
         """
         x0,y0,yaw0 = init_pose
 
-        x1 = x0+self.v_l*self.dt*np.cos(yaw0)
-        y1 = y0+self.v_l*self.dt*np.sin(yaw0)
+        x1 = x0+self.cost*np.cos(yaw0)
+        y1 = y0+self.cost*np.sin(yaw0)
         yaw1 = yaw0
 
         return (x1,y1,yaw1)
+    
+    def get_plot_pts(self, init_pose):
+        x0,y0,yaw0 = init_pose
+
+        cyaw0 = np.cos(yaw0)
+        syaw0 = np.sin(yaw0)
+
+        T = np.array([[cyaw0, -syaw0, x0],
+                      [syaw0,  cyaw0, y0],
+                      [   0.,     0., 1.]])
+        
+        plt_pts = T.dot(self.plt_pts.T)[:2,:]
+        return np.transpose(plt_pts)
 
 def wrap(rad):
     """wrap a angle between 0 to 2pi
@@ -595,7 +643,7 @@ class State:
 
     """
     xy_res = 0.5
-    rad_res = 3.0/180.0*np.pi
+    rad_res = 30.0/180.0*np.pi
     def __init__(self,
                  coord,
                  orientation,
@@ -644,10 +692,11 @@ class State:
         else:
             return np.linalg.norm((dx,dy))<1e-3
     
-    def update(self, cost_to_come, parent):
+    def update(self, cost_to_come, parent, parent_action):
         self.cost_to_come = cost_to_come
         self.estimated_cost = self.cost_to_come+self.cost_to_go
         self.parent = parent
+        self.parent_action = parent_action
     
     @property
     def x(self):
@@ -952,11 +1001,10 @@ class Astar:
                  goal_coord,
                  map : Map,
                  vis_tree:VisTree,
-                 rpms=[50,100],
-                 step_size=10,
+                 rpms=[0.25,0.5],
                  savevid=False,
                  vid_res=72,
-                 goal_ori=None,
+                 goal_ori=0,
                  dt=0.1):
         # use multi processing to check for obstacles
         self.check_pool = multiprocessing.Pool()
@@ -978,7 +1026,6 @@ class Astar:
         self.map = map
         self.vis_tree:VisTree = vis_tree
         self.savevid = savevid
-        self.step_size = step_size
 
         self.open_list = [self.init_coord]
         heapq.heapify(self.open_list)
@@ -1005,10 +1052,13 @@ class Astar:
         rpms = [0.0,*rpms]
         for rpm_l in rpms:
             for rpm_r in rpms:
-                self.actions.append(Action(rpm_left=rpm_l,
-                                           rpm_right=rpm_r,
-                                           dt=dt)
-                                    )
+                if rpm_l > 0  or rpm_r >0:
+                    self.actions.append(Action(rpm_left=rpm_l,
+                                            rpm_right=rpm_r,
+                                            dt=dt)
+                                        )
+        print(self.actions)
+        assert(len(self.actions)==8)
         
         # create the handles for the plots
         self.fig = plt.figure(figsize=(12,6))
@@ -1078,6 +1128,7 @@ class Astar:
                        coord,
                        ori,
                        parent : State,
+                       parent_action : Action,
                        edge_cost):
         """initiate new coordinate to be added to the open list
 
@@ -1098,6 +1149,7 @@ class Astar:
                     cost_to_come=parent.cost_to_come+edge_cost,
                     cost_to_go=cog,
                     parent=parent,
+                    parent_action=parent_action,
                     vt_node=vt_node)
         
         # push to open list heaqp
@@ -1139,32 +1191,35 @@ class Astar:
             state (_type_): _description_
         """
         plt.sca(self.ax)
-        x,y = state.x,state.y
-        rad = state.orientation/180*np.pi
-        # print(x,y,rad,state.orientation)
-        for i in range(0,1):
-            if i==0:
-                c='b'
-                lw=1
-            else:
-                c=(0.8,0.8,0.8)
-                lw=0.5
-            x_ = x+5*np.cos(rad)
-            y_ = y+5*np.sin(rad)
-            xarr = np.array([x,x_,None])
-            yarr = np.array([y,y_,None])
-            if self.closed_plot_data_x is None:
-                self.closed_plot_data_x = xarr
-                self.closed_plot_data_y = yarr
-            else:
-                self.closed_plot_data_x = np.concatenate(
-                    (self.closed_plot_data_x, xarr))
-                self.closed_plot_data_y = np.concatenate(
-                    (self.closed_plot_data_y, yarr))
+
+        # plot the path from the parent to the current node
+        p:State = state.parent
+        if not p:
+            return
+        a:Action = state.parent_action
+
+        # n by 2 array
+        plt_pts = a.get_plot_pts(init_pose=(p.x,p.y,p.orientation))
+
+        print(plt_pts)
+
+        xarr = np.concatenate([plt_pts[:,0],np.array([None])])
+        yarr = np.concatenate([plt_pts[:,1],np.array([None])])
+
+        if self.closed_plot_data_x is None:
+            self.closed_plot_data_x = xarr
+            self.closed_plot_data_y = yarr
+        else:
+            self.closed_plot_data_x = np.concatenate(
+                (self.closed_plot_data_x, xarr))
+            self.closed_plot_data_y = np.concatenate(
+                (self.closed_plot_data_y, yarr))
 
     def visualize_search(self):
         """visualize the search process
         """
+        if self.closed_plot_data_x is None:
+            return
         if not self.closed_plot:
             self.closed_plot = plt.plot(self.closed_plot_data_x,
                                         self.closed_plot_data_y,
@@ -1179,13 +1234,27 @@ class Astar:
         self.fig.canvas.draw()
         if self.savevid:
             self.writer.grab_frame()
-        plt.pause(0.0001)
+        plt.pause(0.5)
 
     def visualize_path(self):
         """visualize the result of backtrack
         """
-        path = np.array(self.path_to_goal)
-        plt.plot(path[:,0],path[:,1],color='r',marker="o",linewidth=1.5,ms=3)
+        nodes = np.array(self.path_to_goal)
+        scatter_pts_x = []
+        scatter_pts_y = []
+        for node in nodes:
+            x,y = node[0]
+            ori = node[1]
+            a:Action = node[2]
+
+            plt_pts = a.get_plot_pts(init_pose=(x,y,ori))
+            plt.plot(plt_pts[:,0],plt_pts[:,1],color='r',
+                     linewidth=1.5)
+            
+            scatter_pts_x.append(x)
+            scatter_pts_y.append(y)
+
+        plt.scatter(scatter_pts_x,scatter_pts_y,s=10,c='r')
         plt.pause(3.0)
         # add some more static frames with the robot at goal
         for _ in range(40):
@@ -1199,13 +1268,14 @@ class Astar:
         if self.savevid:
             self.writer.finish()
 
-    def run(self):
+    def run(self, step=False):
         """run the actual Astar algorithm
         """
         i = 0
         while self.goal_reached is False and len(self.open_list) > 0:
             # pop the coord with the min cost to come
             c = heapq.heappop(self.open_list)
+            print(c)
             self.add_to_closed(c)
             self.add_to_closed_plot(c)
 
@@ -1220,6 +1290,7 @@ class Astar:
 
             for a in self.actions:
                 a : Action
+                print(f"action {a.v_l, a.v_r}")
                 next_pose,center_rot,cost = a.apply(init_pose=(c.x,
                                                           c.y,
                                                           c.orientation)
@@ -1254,6 +1325,7 @@ class Astar:
                                                         pool=self.check_pool)
                     
                 if collide:
+                    print(f"colliding {a.v_l, a.v_r}")
                     continue
 
                 if not self.open_list_added[ideg][ih][iw]:
@@ -1261,41 +1333,24 @@ class Astar:
                     self.initiate_coord(coord=(x,y),
                                         ori=ori,
                                         parent=c,
+                                        parent_action=a,
                                         edge_cost=cost)
                 else:
                     # update the coordinate
                     new_cost_to_come = c.cost_to_come + cost
                     next_s : State = self.open_list_added[ideg][ih][iw]
                     if new_cost_to_come < next_s.cost_to_come:
-                        next_s.update(new_cost_to_come,c)
+                        next_s.update(cost_to_come=new_cost_to_come,
+                                      parent=c,
+                                      parent_action=a)
                         heapq.heapify(self.open_list)
-
-
             
-            for next_state, cost in zip(next_states,action_costs):
-                x,y,ori = next_state
-
-                
-
-                
-                self.map : Map
-
-                # skip if new coord in closed list already
-                
-
-                # skip if overlap with obstacle
-                if self.map.check_obstacle(x_start=c.x,
-                                            y_start=c.y,
-                                            x_end=x,
-                                            y_end=y,
-                                            pool=self.check_pool):
-                    continue
-
-                
+            if step:
+                break
 
             # visualize the result at some fixed interval
             i+=1
-            if i%10==0:
+            if i%1==0:
                 self.visualize_search()
         
         if self.goal_reached:
@@ -1308,11 +1363,13 @@ class Astar:
         """
         self.path_to_goal = []
         c = goal_coord
+        action = None
         while not c.same_state_as(self.init_coord,ignore_ori=True):
-            self.path_to_goal.append(c.coord)
+            c : State
+            self.path_to_goal.append([c.coord,c.orientation,action])
             c = c.parent
-
-        self.path_to_goal.append(c.coord)
+            action = c.parent_action
+        self.path_to_goal.append([c.coord,c.orientation,action])
         self.path_to_goal.reverse()
 
 def ask_for_coord(map:Map, mode="initial"):
@@ -1347,12 +1404,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--savevid", type=bool, default=False,
                         help="whether to save the demo as video")
-    parser.add_argument("--dpi", type=int, default=72,
+    parser.add_argument("--dpi", type=int, default=300,
                         help="resolution of the video saved")
-    parser.add_argument("--rr", type=int, default=220,
+    parser.add_argument("--rr", type=int, default=20,
                         help="robot radius")
-    parser.add_argument("--step", type=int, default=20,
-                        help="robot radius")
+    parser.add_argument("--dt", type=int, default=0.1,
+                        help="step time")
     parser.add_argument("--cogw", type=float, default=1.0,
                         help="additional weight of cost to go, default to 1.0")
     args = parser.parse_args()
@@ -1388,13 +1445,13 @@ if __name__ == "__main__":
                                                 correction={(4,0):[0,-rr*2],
                                                 (4,3):[0,rr*2]})
 
-    # ask user for init and goal position
-    init_coord,init_ori = ask_for_coord(custom_map, mode="initial")
-    goal_coord,goal_ori = ask_for_coord(custom_map, mode="goal")
+    # # ask user for init and goal position
+    # init_coord,init_ori = ask_for_coord(custom_map, mode="initial")
+    # goal_coord,goal_ori = ask_for_coord(custom_map, mode="goal")
         
-    # init_coord = (5,100)
-    # init_ori = -90
-    # goal_coord = (800,200)
+    init_coord = (20,100)
+    init_ori = -90
+    goal_coord = (850,200)
     # goal_ori = -90
 
     vt = VisTree(corners=corners,goal_coord=goal_coord,
@@ -1405,12 +1462,12 @@ if __name__ == "__main__":
     a = Astar(init_coord=init_coord,
               init_ori=init_ori,
               goal_coord=goal_coord,
-              goal_ori=goal_ori,
+              rpms=[1.5,3.0],
               map=custom_map,
               vis_tree=vt,
-              step_size=args.step,
               savevid=savevid,
               vid_res=args.dpi,
+              dt=10.0
               )
 
     # run the algorithm
