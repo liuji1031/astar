@@ -9,22 +9,27 @@ import multiprocessing
 import matplotlib.pyplot as plt
 from matplotlib.animation import FFMpegWriter
 
+DEBUG=False
+
+radius_wheel_tb = 33 # diameter 66 mm
+D_tb = 287 # distance between two wheels
+
+radius_wheel_sim = 5
+D_sim = 10
+
 class Action:
-    radius_wheel_tb = 33 # diameter 66 mm
-    D_tb = 287 # distance between two wheels
-
-    radius_wheel_sim = 5
-    D_sim = 10
-
+    
     def __init__(self, rpm_left, rpm_right,
                  dt=0.1,
-                 use_sim=True) -> None:
-        if use_sim:
-            radius_wheel = Action.radius_wheel_sim
-            D = Action.D_sim
+                 in_gazebo=True,
+                 ) -> None:
+        if in_gazebo:
+            # use actual turtlebot dimension
+            radius_wheel = radius_wheel_tb
+            D = D_tb
         else:
-            radius_wheel = Action.radius_wheel_tb
-            D = Action.D_tb
+            radius_wheel = radius_wheel_sim
+            D = D_sim
 
         self.rpm_left = rpm_left
         self.rpm_right = rpm_right
@@ -125,7 +130,7 @@ class Action:
 
         x1 = x0+self.cost*np.cos(yaw0)
         y1 = y0+self.cost*np.sin(yaw0)
-        yaw1 = yaw0
+        yaw1 = wrap(yaw0)
 
         return (x1,y1,yaw1)
     
@@ -149,18 +154,18 @@ def wrap(rad):
         rad (_type_): _description_
     """
     twopi = 2*np.pi
-    while rad > twopi:
+    while rad >= twopi:
         rad-=twopi
     
     while rad<0:
         rad+=twopi
-
     return rad
 
 def collision_check_curve(pose,
                           action:Action,
                           center_rot,
-                          boundaries):
+                          boundaries,
+                          debug=DEBUG):
     """this function check if the curved path the robot is on will collide 
     with obstacles
 
@@ -171,24 +176,31 @@ def collision_check_curve(pose,
         projection value defining the boundary
     """
     x,y,yaw = pose
+    if debug:
+        print("+++++ Current Pose +++++ ",x,y,yaw)
+    
     cx,cy = center_rot
     min_val = 0.0
-    max_val = action.dyaw
+    max_val = np.abs(action.dyaw)
+    if debug:
+        print("Initial")
+        print((min_val,max_val))
 
     if action.v_r>action.v_l: # turn towards left
         phi0 = yaw-np.pi/2
     else: # turn towards right
         phi0 = yaw+np.pi/2
     # compute center of rotation
+    
+    if action.v_l>action.v_r:
+        phi0-=max_val
     cp = np.cos(phi0)
     sp = np.sin(phi0)
-
-    if action.v_l>action.v_r:
-        phi0-=action.dyaw
     # print(cx,cy,phi0/np.pi*180)
 
     for ib,b in enumerate(boundaries):
-        # print(f"=== boundary {ib+1}")
+        if debug:
+            print(f"=== boundary {ib+1}")
         b:dict
         if b["type"]=="polygon": # obstacle defined by a polygon
             normal, proj = b["normal"], b["proj"]
@@ -196,29 +208,36 @@ def collision_check_curve(pose,
             ny = normal[1]
             # convert to frame defined by phi0, cx, cy
             proj_ = proj-nx*cx-ny*cy
-            nx_ = cp*nx+sp*ny
-            ny_ = -sp*nx+cp*ny
-            theta_hat = wrap(np.arctan2(ny_,nx_))
+            
             # print("theta hat: ",theta_hat/np.pi*180)
             rho = proj_/action.turn_radius
             
             if rho>=1:
-                # print("condition 1, full range")
+                if debug:
+                    print("condition 1, full range")
                 continue
             elif rho>=-1 and rho<1:
+                nx_ = cp*nx+sp*ny
+                ny_ = -sp*nx+cp*ny
+                theta_hat = wrap(np.arctan2(ny_,nx_))
                 cos_inv_rho = np.arccos(rho)
                 theta1 = cos_inv_rho+theta_hat
                 theta2 = 2*np.pi-cos_inv_rho+theta_hat
-                # print("condition 2",rho,theta1,theta2)
+                if debug:
+                    print("condition 2",rho,theta1,theta2,cos_inv_rho,theta_hat)
                 if theta1>2*np.pi or theta2>2*np.pi:
                     theta1-=2*np.pi
                     theta2-=2*np.pi
-                # print("\tcorrection",theta1,theta2)
+                    if debug:
+                        print("\tcorrection",theta1,theta2)
                 min_val = max(min_val,theta1)
                 max_val = min(max_val,theta2)
             elif rho<-1:
-                # print("condition 3",rho)
+                if debug:
+                    print("condition 3",rho)
                 return False
+            if debug:
+                print((min_val, max_val))
         elif b["type"]=="circle": # circular obstacle
             # cx_obs, cy_obs = b["center"]
             # r_obs = b["radius"]
@@ -450,9 +469,15 @@ class Map:
         Args:
             show (bool, optional): _description_. Defaults to True.
         """
-        plt.imshow(self.map+self.map_inflate,cmap="gray_r",vmax=8)
-        plt.gca().invert_yaxis()
-        # plt.colorbar(shrink=0.3)
+        ax = plt.gca()
+        for c in self.obstacle_corners_inflate:
+            ax.add_patch(plt.Polygon(c,facecolor=(0.8,0.8,0.8)))
+        ax.set_aspect("equal",adjustable="box")
+        for c in self.obstacle_corners:
+            ax.add_patch(plt.Polygon(c,facecolor=(0.4,0.4,0.4)))
+        
+        plt.xlim([0,self.width])
+        plt.ylim([0,self.height])
         if show:
             plt.show()
 
@@ -642,7 +667,7 @@ class State:
     for this purpose, the <, > and = operations are overridden
 
     """
-    xy_res = 0.5
+    xy_res = 2.5
     rad_res = 30.0/180.0*np.pi
     def __init__(self,
                  coord,
@@ -653,9 +678,8 @@ class State:
                  parent_action=None,
                  vt_node=None) -> None:
 
-        self.coord = round_to_precision(coord,precision=State.xy_res)
-        self.orientation = round_to_precision(wrap(orientation),
-                                              precision=State.rad_res)
+        self.coord = coord
+        self.orientation = wrap(orientation)
         self.cost_to_come = cost_to_come
         self.cost_to_go = cost_to_go
         self.estimated_cost = self.cost_to_come+self.cost_to_go
@@ -1005,7 +1029,8 @@ class Astar:
                  savevid=False,
                  vid_res=72,
                  goal_ori=0,
-                 dt=0.1):
+                 dt=0.1,
+                 gazebo=False):
         # use multi processing to check for obstacles
         self.check_pool = multiprocessing.Pool()
 
@@ -1055,9 +1080,9 @@ class Astar:
                 if rpm_l > 0  or rpm_r >0:
                     self.actions.append(Action(rpm_left=rpm_l,
                                             rpm_right=rpm_r,
-                                            dt=dt)
+                                            dt=dt,
+                                            in_gazebo=gazebo)
                                         )
-        print(self.actions)
         assert(len(self.actions)==8)
         
         # create the handles for the plots
@@ -1065,14 +1090,8 @@ class Astar:
         self.ax = self.fig.add_subplot()
         self.ax.invert_yaxis()
         # show the map
-        self.map_plot = self.ax.imshow( self.map_plot_data,
-                                        cmap='bone_r',vmin=0,vmax=6,
-                                        extent=(0,self.map.width,0,
-                                               self.map.height),
-                                        resample=False,
-                                        aspect='equal',
-                                        origin='lower',
-                                        interpolation='none')
+        self.map.plot(show=False)
+
         # plot goal location
         self.ax.plot(self.goal_coord.x, self.goal_coord.y, marker="*",ms=10)
         # plot robot location
@@ -1103,6 +1122,7 @@ class Astar:
             c (State): _description_
         """
         ideg, ih, iw = c.index
+        ideg = ideg%len(self.closed_list)
         self.closed_list[ideg][ih][iw] = c
 
     def at_goal(self, c : State):
@@ -1113,17 +1133,9 @@ class Astar:
         """
         dx = c.x-self.goal_coord.x
         dy = c.y-self.goal_coord.y
-        rad1 = c.orientation/180*np.pi
-        v1 = np.array([np.cos(rad1),np.sin(rad1)])
 
-        rad2 = self.goal_coord.orientation/180*np.pi
-        v2 = np.array([np.cos(rad2),np.sin(rad2)])
+        return np.linalg.norm((dx,dy))<0.5*self.map.inflate_radius
 
-        proj = np.inner(v1,v2).item()
-
-        return (np.linalg.norm((dx,dy))<1.5*self.map.inflate_radius)&(proj>=0.86)
-
-    
     def initiate_coord(self,
                        coord,
                        ori,
@@ -1157,6 +1169,7 @@ class Astar:
         
         # mark as added
         ideg, ih, iw = new_c.index
+        ideg = ideg%len(self.closed_list)
         self.open_list_added[ideg][ih][iw] = new_c
 
     def print_open_len(self):
@@ -1171,6 +1184,7 @@ class Astar:
             parent (_type_): _description_
         """
         ideg, ih, iw = c.index
+        ideg = ideg%len(self.closed_list)
         self.open_list_added[ideg][ih][iw].update(new_cost_to_come,parent)
     
     def on_obstacle(self, x, y):
@@ -1201,8 +1215,6 @@ class Astar:
         # n by 2 array
         plt_pts = a.get_plot_pts(init_pose=(p.x,p.y,p.orientation))
 
-        print(plt_pts)
-
         xarr = np.concatenate([plt_pts[:,0],np.array([None])])
         yarr = np.concatenate([plt_pts[:,1],np.array([None])])
 
@@ -1229,33 +1241,36 @@ class Astar:
             # update only
             self.closed_plot.set_data(self.closed_plot_data_x,
                                       self.closed_plot_data_y)
-
+        # plt.xlim([50,500])
+        # plt.ylim([50,90])
         self.fig.canvas.flush_events()
         self.fig.canvas.draw()
         if self.savevid:
             self.writer.grab_frame()
-        plt.pause(0.5)
+
+        # plt.pause(0.2)
+        # plt.pause(0.0001)
 
     def visualize_path(self):
         """visualize the result of backtrack
         """
-        nodes = np.array(self.path_to_goal)
+        nodes = self.path_to_goal
         scatter_pts_x = []
         scatter_pts_y = []
         for node in nodes:
             x,y = node[0]
             ori = node[1]
             a:Action = node[2]
-
-            plt_pts = a.get_plot_pts(init_pose=(x,y,ori))
-            plt.plot(plt_pts[:,0],plt_pts[:,1],color='r',
-                     linewidth=1.5)
+            if a:
+                plt_pts = a.get_plot_pts(init_pose=(x,y,ori))
+                plt.plot(plt_pts[:,0],plt_pts[:,1],color='r',
+                        linewidth=1.5)
             
             scatter_pts_x.append(x)
             scatter_pts_y.append(y)
 
-        plt.scatter(scatter_pts_x,scatter_pts_y,s=10,c='r')
-        plt.pause(3.0)
+        plt.scatter(scatter_pts_x,scatter_pts_y,s=3,c='r')
+        plt.pause(10.0)
         # add some more static frames with the robot at goal
         for _ in range(40):
             
@@ -1275,7 +1290,14 @@ class Astar:
         while self.goal_reached is False and len(self.open_list) > 0:
             # pop the coord with the min cost to come
             c = heapq.heappop(self.open_list)
-            print(c)
+            curr_pose = (c.x,c.y,c.orientation)
+            # print("======= New closed node: =======")
+            # print(c.coord, c.orientation)
+            # if c.parent:
+            #     print("parent pose:",c.parent.coord, c.parent.orientation)
+            # if c.parent_action:
+            #     print("parent action: ",c.parent_action.v_l, c.parent_action.v_r)
+            # print("================================")
             self.add_to_closed(c)
             self.add_to_closed_plot(c)
 
@@ -1287,10 +1309,8 @@ class Astar:
             
             # not at goal, go through reachable point from c
             # apply the motion model
-
             for a in self.actions:
                 a : Action
-                print(f"action {a.v_l, a.v_r}")
                 next_pose,center_rot,cost = a.apply(init_pose=(c.x,
                                                           c.y,
                                                           c.orientation)
@@ -1302,7 +1322,8 @@ class Astar:
                     continue
                 
                 # check if in closed list
-                ideg = int(ori/State.rad_res)
+                
+                ideg = int(ori/State.rad_res)%len(self.closed_list)
                 ih = int(y/State.xy_res)
                 iw = int(x/State.xy_res)
                 if self.closed_list[ideg][ih][iw]:
@@ -1319,15 +1340,15 @@ class Astar:
                                                         pool=self.check_pool)
                 else:
                     # check curves
-                    collide = self.map.check_obstacle_curve(curr_pose=next_pose,
+                    collide = self.map.check_obstacle_curve(curr_pose=curr_pose,
                                                         action=a,
                                                         center_rot=center_rot,
                                                         pool=self.check_pool)
                     
-                if collide:
-                    print(f"colliding {a.v_l, a.v_r}")
-                    continue
+                    # print(f"checking: {a.v_l, a.v_r}, {collide}")
 
+                if collide:
+                    continue
                 if not self.open_list_added[ideg][ih][iw]:
                     # not added to the open list, do initialization first
                     self.initiate_coord(coord=(x,y),
@@ -1350,7 +1371,7 @@ class Astar:
 
             # visualize the result at some fixed interval
             i+=1
-            if i%1==0:
+            if i%50==0:
                 self.visualize_search()
         
         if self.goal_reached:
@@ -1367,8 +1388,9 @@ class Astar:
         while not c.same_state_as(self.init_coord,ignore_ori=True):
             c : State
             self.path_to_goal.append([c.coord,c.orientation,action])
-            c = c.parent
             action = c.parent_action
+            c = c.parent
+            
         self.path_to_goal.append([c.coord,c.orientation,action])
         self.path_to_goal.reverse()
 
@@ -1406,15 +1428,25 @@ if __name__ == "__main__":
                         help="whether to save the demo as video")
     parser.add_argument("--dpi", type=int, default=300,
                         help="resolution of the video saved")
+    parser.add_argument("--gazebo", type=bool, default=False,
+                        help="in gazebo sim or not")
     parser.add_argument("--rr", type=int, default=20,
                         help="robot radius")
-    parser.add_argument("--dt", type=int, default=0.1,
+    parser.add_argument("--dt", type=float, default=20.0,
                         help="step time")
     parser.add_argument("--cogw", type=float, default=1.0,
                         help="additional weight of cost to go, default to 1.0")
+    parser.add_argument("--rpm1", type=float, default=0.5,
+                        help="rpm 1")
+    parser.add_argument("--rpm2", type=float, default=1.0,
+                        help="rpm 2")
     args = parser.parse_args()
-    savevid = args.savevid
-    rr = args.rr
+
+    if args.gazebo:
+        State.xy_res = D_tb/4.0
+    else:
+        State.xy_res = D_sim/4.0
+
     # create map object
     custom_map = Map(inflate_radius=args.rr)
 
@@ -1438,6 +1470,7 @@ if __name__ == "__main__":
         custom_map.add_obstacle(corners_tuple=c)
 
     # get the inflated obstacle corners
+    rr = args.rr
     corners = custom_map.get_obstacle_corners_array(omit=[(3,2),
                                                           (4,1),
                                                           (4,2),
@@ -1448,11 +1481,11 @@ if __name__ == "__main__":
     # # ask user for init and goal position
     # init_coord,init_ori = ask_for_coord(custom_map, mode="initial")
     # goal_coord,goal_ori = ask_for_coord(custom_map, mode="goal")
-        
-    init_coord = (20,100)
-    init_ori = -90
-    goal_coord = (850,200)
-    # goal_ori = -90
+
+    init_coord = (100,50)
+    init_ori = 0
+
+    goal_coord = (850,250)
 
     vt = VisTree(corners=corners,goal_coord=goal_coord,
              boundary=custom_map.obstacle_boundary_inflate,
@@ -1462,12 +1495,13 @@ if __name__ == "__main__":
     a = Astar(init_coord=init_coord,
               init_ori=init_ori,
               goal_coord=goal_coord,
-              rpms=[1.5,3.0],
+              rpms=[args.rpm1,args.rpm2],
               map=custom_map,
               vis_tree=vt,
-              savevid=savevid,
+              savevid=args.savevid,
               vid_res=args.dpi,
-              dt=10.0
+              dt=args.dt,
+              gazebo=args.gazebo
               )
 
     # run the algorithm
