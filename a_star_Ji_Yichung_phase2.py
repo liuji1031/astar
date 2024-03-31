@@ -1464,7 +1464,7 @@ if __name__ == "__main__":
                                             upper_left=(1020,375),w=80,h=250))
     obs_corners.append(custom_map.get_corners_rect(
                                             upper_left=(900,125),w=200,h=75))
-
+    
     # add all obstacles to map
     for c in obs_corners:
         custom_map.add_obstacle(corners_tuple=c)
