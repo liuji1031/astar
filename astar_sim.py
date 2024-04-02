@@ -621,11 +621,12 @@ class Map:
                         if (i,j)==o:
                             skip=True
                             break
-                    if not skip:
-                        if (i,j) in correction:
-                            out.append(corners[j,:]+np.array(correction[(i,j)]))
-                        else:
-                            out.append(corners[j,:])
+                    
+                if not skip:
+                    if correction is not None and (i,j) in correction:
+                        out.append(corners[j,:]+np.array(correction[(i,j)]))
+                    else:
+                        out.append(corners[j,:])
         return np.array(out)
     
     def get_corners_circ(self,center, radius, n=20):
@@ -1548,7 +1549,4 @@ if __name__ == "__main__":
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
-
-
-
     
