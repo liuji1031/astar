@@ -20,6 +20,42 @@ D_tb = 287 # distance between two wheels
 radius_wheel_sim = 5
 D_sim = 10
 
+class velocity_publisher(Node):
+    def __init__(self, f, action_list):
+        super().__init__('astar_planning_node')
+        self.timer_period = f
+        self.cmd_vel_pub = self.create_publisher(Twist,'/cmd_vel', 10)
+        self.timer = self.create_timer(self.timer_period, self.timer_callback)
+        self.i = 0
+        self.action_list = action_list
+        
+
+    def timer_callback(self):
+        msg = Twist()
+
+        if self.i >= len(self.action_list):
+            msg.linear.x = 0.0
+            msg.angular.z = 0.0
+            return
+        
+        a:Action = self.action_list[self.i]
+        
+        ur = a.v_r
+        ul = a.v_l
+
+        linear_vel = 0.5 * (ur+ul)
+        ang_vel = radius_wheel_tb * (ur-ul) / D_tb
+
+        msg.linear.x = linear_vel
+        msg.angular.z = ang_vel
+
+        # publish
+
+        self.i+=1
+        
+        self.publisher_.publish(msg)
+      
+
 class Action:
     
     def __init__(self, rpm_left, rpm_right,
@@ -591,7 +627,7 @@ class Map:
                         out.append(corners[j,:])
         return np.array(out)
     
-    def get_corners_hex(self,center, radius):
+    def get_corners_circ(self,center, radius, n=20):
         """get the hexagon corner points
 
         Args:
@@ -601,8 +637,10 @@ class Map:
         Returns:
             _type_: _description_
         """
-        theta = np.pi/2 + np.linspace(0., -2*np.pi, 50, endpoint=False)
-        radius_inflate = radius + self.inflate_radius/np.sqrt(3)*2
+        theta = np.pi/2 + np.linspace(0., -2*np.pi, n, endpoint=False)
+        phi = np.pi / n
+        r_ = radius / np.cos(phi)
+        radius_inflate = r_ + self.inflate_radius/np.sqrt(3)*2
 
         corners = np.hstack([
                     (center[0]+radius*np.cos(theta))[:,np.newaxis],#
@@ -1424,41 +1462,7 @@ def ask_for_coord(map:Map, mode="initial"):
         break
     return (x,y), ori
 
-class velocity_publisher(Node):
-    def __init__(self, f, action_list):
-        super().__init__('astar_planning_node')
-        self.timer_period = f
-        self.cmd_vel_pub = self.create_publisher(Twist,'/cmd_vel', 10)
-        self.timer = self.create_timer(self.timer_period, self.timer_callback)
-        self.i = 0
-        self.action_list = action_list
-        
-
-    def timer_callback(self):
-        msg = Twist()
-
-        if self.i >= len(self.action_list):
-            msg.linear.x = 0.0
-            msg.angular.z = 0.0
-            return
-        
-        a:Action = self.action_list[self.i]
-        
-        ur = a.v_r
-        ul = a.v_l
-
-        linear_vel = 0.5 * (ur+ul)
-        ang_vel = radius_wheel_tb * (ur-ul) / D_tb
-
-        msg.linear.x = linear_vel
-        msg.angular.z = ang_vel
-
-        # publish
-
-        self.i+=1
-        
-        self.publisher_.publish(msg)
-        # self.get_logger().info('Publishing: "%s"' % msg.data)
+  # self.get_logger().info('Publishing: "%s"' % msg.data)
         
 
 if __name__ == "__main__":
@@ -1496,7 +1500,7 @@ if __name__ == "__main__":
                                             upper_left=(1500,2000),w=250,h=1000))
     obs_corners.append(custom_map.get_corners_rect(
                                             upper_left=(2500,1000),w=250,h=1000))
-    obs_corners.append(custom_map.get_corners_hex(
+    obs_corners.append(custom_map.get_corners_circ(
                                             center=(4200,1200),radius=600))
     
     # add all obstacles to map
@@ -1539,7 +1543,7 @@ if __name__ == "__main__":
     goal_path = a.path_to_goal
 
     rclpy.init(args=None)
-    node = velocity_publisher(f=1, action_list=goal_path)
+    node = velocity_publisher(f=0.1, action_list=goal_path)
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
