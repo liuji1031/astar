@@ -604,8 +604,8 @@ class Map:
             return False
         
     def get_obstacle_corners_array(self,
-                                   omit,
-                                   correction):
+                                   omit=None,
+                                   correction=None):
         """returns an numpy array of all obstacle corners
 
         Returns:
@@ -616,15 +616,16 @@ class Map:
             corners:np.ndarray
             for j in range(corners.shape[0]):
                 skip=False
-                for o in omit:
-                    if (i,j)==o:
-                        skip=True
-                        break
-                if not skip:
-                    if (i,j) in correction:
-                        out.append(corners[j,:]+np.array(correction[(i,j)]))
-                    else:
-                        out.append(corners[j,:])
+                if omit is not None:
+                    for o in omit:
+                        if (i,j)==o:
+                            skip=True
+                            break
+                    if not skip:
+                        if (i,j) in correction:
+                            out.append(corners[j,:]+np.array(correction[(i,j)]))
+                        else:
+                            out.append(corners[j,:])
         return np.array(out)
     
     def get_corners_circ(self,center, radius, n=20):
