@@ -75,8 +75,11 @@ class Action:
                                                        # right wheel
         self.v_l = self.w_l*wheel_radius
         self.v_r = self.w_r*wheel_radius
+        
         vel_sum = self.v_l+self.v_r
         vel_diff = self.v_l-self.v_r
+
+        self.lin_vel = 0.5*(vel_sum)
         if vel_diff != 0:
             self.ang_vel = -vel_diff/wheel_distance
             self.dyaw = self.ang_vel*self.dt
@@ -220,7 +223,7 @@ def collision_check_curve(pose,
     
     cx,cy = center_rot
     min_val = 0.0
-    max_val = np.abs(action.dyaw)
+    max_val = 1.0
     if debug:
         print("Initial")
         print((min_val,max_val))
@@ -231,8 +234,12 @@ def collision_check_curve(pose,
         phi0 = yaw+np.pi/2
     # compute center of rotation
     
+    delta_phi = np.abs(action.dyaw)
     if action.v_l>action.v_r:
-        phi0-=max_val
+        phi0-=delta_phi
+
+    if debug:
+        print(phi0)
     cp = np.cos(phi0)
     sp = np.sin(phi0)
     # print(cx,cy,phi0/np.pi*180)
@@ -256,21 +263,34 @@ def collision_check_curve(pose,
                     print("condition 1, full range")
                 continue
             elif rho>=-1 and rho<1:
-                nx_ = cp*nx+sp*ny
-                ny_ = -sp*nx+cp*ny
-                theta_hat = wrap(np.arctan2(ny_,nx_))
+
+                theta = np.arctan2(ny,nx)
+                theta_hat = wrap(theta-phi0)
                 cos_inv_rho = np.arccos(rho)
                 theta1 = cos_inv_rho+theta_hat
                 theta2 = 2*np.pi-cos_inv_rho+theta_hat
+                rng1 = theta1/delta_phi
+                rng2 = theta2/delta_phi
+                rng1_ = (theta1-2*np.pi)/delta_phi
+                rng2_ = (theta2-2*np.pi)/delta_phi
+
+                min_val1 = max(min_val,rng1)
+                max_val1 = min(max_val,rng2)
+
+                min_val2 = max(min_val,rng1_)
+                max_val2 = min(max_val,rng2_)
+
                 if debug:
-                    print("condition 2",rho,theta1,theta2,cos_inv_rho,theta_hat)
-                if theta1>2*np.pi or theta2>2*np.pi:
-                    theta1-=2*np.pi
-                    theta2-=2*np.pi
-                    if debug:
-                        print("\tcorrection",theta1,theta2)
-                min_val = max(min_val,theta1)
-                max_val = min(max_val,theta2)
+                    print("condition 2",rho,theta1, theta2, rng1,rng2,rng1_,rng2_)
+
+                if min_val1 > max_val1:
+                    # first intersection is empty
+                    min_val = min_val2
+                    max_val = max_val2
+                else:
+                    min_val = min_val1
+                    max_val = max_val1
+
             elif rho<-1:
                 if debug:
                     print("condition 3",rho)
@@ -278,6 +298,7 @@ def collision_check_curve(pose,
             if debug:
                 print((min_val, max_val))
         elif b["type"]=="circle": # circular obstacle
+            raise NotImplementedError
             # cx_obs, cy_obs = b["center"]
             # r_obs = b["radius"]
 
@@ -631,7 +652,7 @@ class Map:
                             out.append(corners[j,:])
         return np.array(out)
     
-    def get_corners_circ(self,center, radius, n=20):
+    def get_corners_circ(self,center, circle_radius, n=20):
         """get the hexagon corner points
 
         Args:
@@ -642,9 +663,9 @@ class Map:
             _type_: _description_
         """
         theta = np.pi/2 + np.linspace(0., -2*np.pi, n, endpoint=False)
-        phi = np.pi / n
-        r_ = radius / np.cos(phi)
-        radius_inflate = r_ + self.inflate_radius/np.sqrt(3)*2
+        phi = np.pi/n
+        radius = circle_radius / np.cos(phi)
+        radius_inflate = radius + self.inflate_radius/np.cos(phi)
 
         corners = np.hstack([
                     (center[0]+radius*np.cos(theta))[:,np.newaxis],#
@@ -985,6 +1006,7 @@ class VisTree:
         heapq.heapify(q)
         dist=0
         vt_node=None
+        curr_dist = None
         while len(q)>0:
             t:VisTreeNode = heapq.heappop(q)
             x_end,y_end = t.coord
@@ -1005,12 +1027,17 @@ class VisTree:
             if not in_obs: # not cross any obstacle
                 dist = np.linalg.norm((x_start-t.coord[0],y_start-t.coord[1]))
                 dist += t.dist_to_goal
-                vt_node = t
-                break
+                if curr_dist is None:
+                    vt_node = t
+                    curr_dist = dist
+                else:
+                    if curr_dist > dist:
+                        vt_node = t
+                        curr_dist = dist
             else:
                 for c in t.children:
                     heapq.heappush(q,c)
-        return dist*self.rho,vt_node
+        return curr_dist*self.rho,vt_node
     
     def compute_cost_to_go_from_current(self,
                                         curr_node:VisTreeNode,
@@ -1061,7 +1088,7 @@ class VisTree:
 
         return dist*self.rho,vt_node
 
-    def plot(self):
+    def plot(self,verbose=False):
         cmap = matplotlib.colormaps['tab20']
         N=10
         colors = [cmap(0.1*i) for i in range(N)]
@@ -1076,9 +1103,11 @@ class VisTree:
             else:
                 if len(t.children)>0:
                     plt.scatter(t.coord[0],t.coord[1],color=colors[icolor],marker="o")
-            # print(f"children node of {t.coord} ",f"cost {t.dist_to_goal}")
+            if verbose:
+                print(f"children node of {t.coord}:",f"cost {t.dist_to_goal}")
             for c in t.children:
-                # print("\t",c.coord)
+                if verbose:
+                    print("\t",c.coord, c.dist_to_goal)
                 
                 plt.plot([t.coord[0],c.coord[0]],
                         [t.coord[1],c.coord[1]],
@@ -1209,7 +1238,7 @@ class Astar:
         dx = c.x-self.goal_coord.x
         dy = c.y-self.goal_coord.y
 
-        return np.linalg.norm((dx,dy))<0.1*self.map.inflate_radius
+        return np.linalg.norm((dx,dy))<0.25*self.map.inflate_radius
 
     def initiate_coord(self,
                        coord,
@@ -1323,7 +1352,7 @@ class Astar:
         if self.savevid:
             self.writer.grab_frame()
 
-        plt.pause(0.2)
+        # plt.pause(0.2)
         # plt.pause(0.0001)
 
     def visualize_path(self):
@@ -1345,7 +1374,7 @@ class Astar:
             scatter_pts_y.append(y)
 
         plt.scatter(scatter_pts_x,scatter_pts_y,s=6,c='r')
-        plt.pause(10.0)
+        plt.pause(5.0)
         # add some more static frames with the robot at goal
         for _ in range(40):
             
@@ -1446,7 +1475,7 @@ class Astar:
 
             # visualize the result at some fixed interval
             i+=1
-            if i%1==0:
+            if i%50==0:
                 self.visualize_search()
         
         if self.goal_reached:
@@ -1537,7 +1566,8 @@ if __name__ == "__main__":
                                             upper_left=(2500,1000),
                                             w=250,h=1000))
     obs_corners.append(custom_map.get_corners_circ(
-                                            center=(4200,1200),radius=600))
+                                            center=(4200,1200),
+                                            circle_radius=600,n=30))
     
     # add all obstacles to map
     for c in obs_corners:
