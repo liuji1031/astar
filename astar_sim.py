@@ -1,74 +1,70 @@
 #!/usr/bin/env python3
 
-import rclpy
-from rclpy.node import Node
-from geometry_msgs.msg import Twist
-import time
-from pynput import keyboard
+# import rclpy
+# from rclpy.node import Node
+# from geometry_msgs.msg import Twist
+# import time
+# from pynput import keyboard
 import argparse
 import numpy as np
 import heapq
 import multiprocessing
 import matplotlib.pyplot as plt
+import matplotlib
 from matplotlib.animation import FFMpegWriter
 
 DEBUG=False
 
-radius_wheel_tb = 33 # diameter 66 mm
-D_tb = 287 # distance between two wheels
+class Turtlebot3Waffle:
+    wheel_radius = 33
+    wheel_distance = 287
+    robot_radius = 220
 
-radius_wheel_sim = 5
-D_sim = 10
-
-class velocity_publisher(Node):
-    def __init__(self, f, action_list):
-        super().__init__('astar_planning_node')
-        self.timer_period = f
-        self.cmd_vel_pub = self.create_publisher(Twist,'/cmd_vel', 10)
-        self.timer = self.create_timer(self.timer_period, self.timer_callback)
-        self.i = 0
-        self.action_list = action_list
+# class velocity_publisher(Node):
+#     def __init__(self, f, action_list):
+#         super().__init__('astar_planning_node')
+#         self.timer_period = f
+#         self.cmd_vel_pub = self.create_publisher(Twist,'/cmd_vel', 10)
+#         self.timer = self.create_timer(self.timer_period, self.timer_callback)
+#         self.i = 0
+#         self.action_list = action_list
         
 
-    def timer_callback(self):
-        msg = Twist()
+#     def timer_callback(self):
+#         msg = Twist()
 
-        if self.i >= len(self.action_list):
-            msg.linear.x = 0.0
-            msg.angular.z = 0.0
-            return
+#         if self.i >= len(self.action_list):
+#             msg.linear.x = 0.0
+#             msg.angular.z = 0.0
+#             return
         
-        a:Action = self.action_list[self.i]
+#         a:Action = self.action_list[self.i]
         
-        ur = a.v_r
-        ul = a.v_l
+#         ur = a.v_r
+#         ul = a.v_l
 
-        linear_vel = 0.5 * (ur+ul)
-        ang_vel = radius_wheel_tb * (ur-ul) / D_tb
+#         linear_vel = 0.5 * (ur+ul)
+#         ang_vel = radius_wheel_tb * (ur-ul) / D_tb
 
-        msg.linear.x = linear_vel
-        msg.angular.z = ang_vel
+#         msg.linear.x = linear_vel
+#         msg.angular.z = ang_vel
 
-        # publish
+#         # publish
 
-        self.i+=1
+#         self.i+=1
         
-        self.publisher_.publish(msg)
+#         self.publisher_.publish(msg)
       
 
 class Action:
     
-    def __init__(self, rpm_left, rpm_right,
+    def __init__(self,
+                 rpm_left,
+                 rpm_right,
+                 wheel_radius,
+                 wheel_distance,
                  dt=0.1,
-                 in_gazebo=True,
                  ) -> None:
-        if in_gazebo:
-            # use actual turtlebot dimension
-            radius_wheel = radius_wheel_tb
-            D = D_tb
-        else:
-            radius_wheel = radius_wheel_sim
-            D = D_sim
 
         self.rpm_left = rpm_left
         self.rpm_right = rpm_right
@@ -77,14 +73,14 @@ class Action:
         self.w_l = 2*np.pi/60.0*rpm_left
         self.w_r = 2*np.pi/60.0*rpm_right # angular vel of left and
                                                        # right wheel
-        self.v_l = self.w_l*radius_wheel
-        self.v_r = self.w_r*radius_wheel
+        self.v_l = self.w_l*wheel_radius
+        self.v_r = self.w_r*wheel_radius
         vel_sum = self.v_l+self.v_r
         vel_diff = self.v_l-self.v_r
         if vel_diff != 0:
-            self.ang_vel = -2*vel_diff/D
+            self.ang_vel = -vel_diff/wheel_distance
             self.dyaw = self.ang_vel*self.dt
-            self.turn_radius = D/2*vel_sum/np.abs(vel_diff)
+            self.turn_radius = wheel_distance/2*vel_sum/np.abs(vel_diff)
             self.cost = self.turn_radius*np.abs(self.dyaw)
         else:
             self.ang_vel = 0.
@@ -185,6 +181,10 @@ class Action:
         
         plt_pts = T.dot(self.plt_pts.T)[:2,:]
         return np.transpose(plt_pts)
+    
+    def plot(self,init_pose=(0,0,0)):
+        plt_pts = self.get_plot_pts(init_pose=init_pose)
+        plt.plot(plt_pts[:,0],plt_pts[:,1])
 
 def wrap(rad):
     """wrap a angle between 0 to 2pi
@@ -626,7 +626,9 @@ class Map:
                     if correction is not None and (i,j) in correction:
                         out.append(corners[j,:]+np.array(correction[(i,j)]))
                     else:
-                        out.append(corners[j,:])
+                        x,y = corners[j,:]
+                        if x>=0 and x<=self.width and y>=0 and y<=self.height:
+                            out.append(corners[j,:])
         return np.array(out)
     
     def get_corners_circ(self,center, radius, n=20):
@@ -1059,6 +1061,33 @@ class VisTree:
 
         return dist*self.rho,vt_node
 
+    def plot(self):
+        cmap = matplotlib.colormaps['tab20']
+        N=10
+        colors = [cmap(0.1*i) for i in range(N)]
+        icolor=0
+        q = [self.root]
+        rootnode=True
+        while len(q)>0:
+            t = q.pop(0)
+            if rootnode is True:
+                pass
+                rootnode=False
+            else:
+                if len(t.children)>0:
+                    plt.scatter(t.coord[0],t.coord[1],color=colors[icolor],marker="o")
+            # print(f"children node of {t.coord} ",f"cost {t.dist_to_goal}")
+            for c in t.children:
+                # print("\t",c.coord)
+                
+                plt.plot([t.coord[0],c.coord[0]],
+                        [t.coord[1],c.coord[1]],
+                        color=colors[icolor],
+                        linewidth=1.5)
+                q.append(c)
+            
+            icolor = int((icolor+1)%N)
+
 class Astar:
     # implement the Astar search algorithm
 
@@ -1069,11 +1098,13 @@ class Astar:
                  map : Map,
                  vis_tree:VisTree,
                  rpms=[0.25,0.5],
+                 wheel_radius=Turtlebot3Waffle.wheel_radius,
+                 wheel_distance=Turtlebot3Waffle.wheel_distance,
                  savevid=False,
                  vid_res=72,
                  goal_ori=0,
-                 dt=0.1,
-                 gazebo=False):
+                 dt=0.1
+                 ):
         # use multi processing to check for obstacles
         self.check_pool = multiprocessing.Pool()
 
@@ -1122,9 +1153,10 @@ class Astar:
             for rpm_r in rpms:
                 if rpm_l > 0  or rpm_r >0:
                     self.actions.append(Action(rpm_left=rpm_l,
-                                            rpm_right=rpm_r,
-                                            dt=dt,
-                                            in_gazebo=gazebo)
+                                               rpm_right=rpm_r,
+                                               wheel_radius=wheel_radius,
+                                               wheel_distance=wheel_distance,
+                                               dt=dt)
                                         )
         assert(len(self.actions)==8)
         
@@ -1177,7 +1209,7 @@ class Astar:
         dx = c.x-self.goal_coord.x
         dy = c.y-self.goal_coord.y
 
-        return np.linalg.norm((dx,dy))<0.5*self.map.inflate_radius
+        return np.linalg.norm((dx,dy))<0.1*self.map.inflate_radius
 
     def initiate_coord(self,
                        coord,
@@ -1291,7 +1323,7 @@ class Astar:
         if self.savevid:
             self.writer.grab_frame()
 
-        # plt.pause(0.2)
+        plt.pause(0.2)
         # plt.pause(0.0001)
 
     def visualize_path(self):
@@ -1312,7 +1344,7 @@ class Astar:
             scatter_pts_x.append(x)
             scatter_pts_y.append(y)
 
-        plt.scatter(scatter_pts_x,scatter_pts_y,s=3,c='r')
+        plt.scatter(scatter_pts_x,scatter_pts_y,s=6,c='r')
         plt.pause(10.0)
         # add some more static frames with the robot at goal
         for _ in range(40):
@@ -1414,7 +1446,7 @@ class Astar:
 
             # visualize the result at some fixed interval
             i+=1
-            if i%50==0:
+            if i%1==0:
                 self.visualize_search()
         
         if self.goal_reached:
@@ -1466,7 +1498,6 @@ def ask_for_coord(map:Map, mode="initial"):
 
   # self.get_logger().info('Publishing: "%s"' % msg.data)
         
-
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -1474,24 +1505,25 @@ if __name__ == "__main__":
                         help="whether to save the demo as video")
     parser.add_argument("--dpi", type=int, default=300,
                         help="resolution of the video saved")
-    parser.add_argument("--gazebo", type=bool, default=False,
-                        help="in gazebo sim or not")
-    parser.add_argument("--rr", type=int, default=20,
+    parser.add_argument("--rr", type=int, default=Turtlebot3Waffle.robot_radius,
                         help="robot radius")
-    parser.add_argument("--dt", type=float, default=20.0,
+    parser.add_argument("--wr", type=int,
+                        default=Turtlebot3Waffle.wheel_radius,
+                        help="wheel radius")
+    parser.add_argument("--wd", type=int,
+                        default=Turtlebot3Waffle.wheel_distance,
+                        help="wheel distance")
+    parser.add_argument("--dt", type=float, default=1.5,
                         help="step time")
     parser.add_argument("--cogw", type=float, default=1.0,
                         help="additional weight of cost to go, default to 1.0")
-    parser.add_argument("--rpm1", type=float, default=0.5,
+    parser.add_argument("--rpm1", type=float, default=20.0,
                         help="rpm 1")
-    parser.add_argument("--rpm2", type=float, default=1.0,
+    parser.add_argument("--rpm2", type=float, default=40.0,
                         help="rpm 2")
     args = parser.parse_args()
 
-    if args.gazebo:
-        State.xy_res = D_tb/4.0
-    else:
-        State.xy_res = D_sim/4.0
+    State.xy_res = args.rr/10.0
 
     # create map object
     custom_map = Map(inflate_radius=args.rr)
@@ -1499,9 +1531,11 @@ if __name__ == "__main__":
     # define the corners of all the convex obstacles
     obs_corners = []
     obs_corners.append(custom_map.get_corners_rect(
-                                            upper_left=(1500,2000),w=250,h=1000))
+                                            upper_left=(1500,2000),
+                                            w=250,h=1000))
     obs_corners.append(custom_map.get_corners_rect(
-                                            upper_left=(2500,1000),w=250,h=1000))
+                                            upper_left=(2500,1000),
+                                            w=250,h=1000))
     obs_corners.append(custom_map.get_corners_circ(
                                             center=(4200,1200),radius=600))
     
@@ -1531,22 +1565,23 @@ if __name__ == "__main__":
               init_ori=init_ori,
               goal_coord=goal_coord,
               rpms=[args.rpm1,args.rpm2],
+              wheel_radius=args.wr,
+              wheel_distance=args.wd,
               map=custom_map,
               vis_tree=vt,
               savevid=args.savevid,
               vid_res=args.dpi,
               dt=args.dt,
-              gazebo=args.gazebo
               )
 
     # run the algorithm
     a.run()
     
-    goal_path = a.path_to_goal
+    # goal_path = a.path_to_goal
 
-    rclpy.init(args=None)
-    node = velocity_publisher(f=0.1, action_list=goal_path)
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    # rclpy.init(args=None)
+    # node = velocity_publisher(f=0.1, action_list=goal_path)
+    # rclpy.spin(node)
+    # node.destroy_node()
+    # rclpy.shutdown()
     
