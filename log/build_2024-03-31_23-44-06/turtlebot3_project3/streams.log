@@ -1,0 +1,63 @@
+[0.007s] Invoking command in '/home/ychen921/project3_ws/build/turtlebot3_project3': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/galactic /usr/bin/cmake --build /home/ychen921/project3_ws/build/turtlebot3_project3 -- -j20 -l20
+[0.047s] [100%] Built target turtlebot3_drive
+[0.055s] Invoked command in '/home/ychen921/project3_ws/build/turtlebot3_project3' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/galactic /usr/bin/cmake --build /home/ychen921/project3_ws/build/turtlebot3_project3 -- -j20 -l20
+[0.082s] Invoking command in '/home/ychen921/project3_ws/build/turtlebot3_project3': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/galactic /usr/bin/cmake --install /home/ychen921/project3_ws/build/turtlebot3_project3
+[0.087s] -- Install configuration: ""
+[0.087s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/lib/turtlebot3_project3/turtlebot3_drive
+[0.087s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//launch
+[0.087s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//launch/robot_state_publisher.launch.py
+[0.087s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//launch/competition_world.launch.py
+[0.087s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//launch/empty_world.launch.py
+[0.087s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//launch/spawn_turtlebot3.launch.py
+[0.087s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_world
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_world/meshes
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_world/meshes/hexagon.dae
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_world/meshes/wall.dae
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_world/model.sdf
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_world/model.config
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_world/model-1_4.sdf
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/meshes
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/meshes/tire.dae
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/meshes/waffle_base.dae
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/meshes/waffle_pi_base.dae
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/meshes/lds.dae
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/meshes/r200.dae
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/meshes/burger_base.dae
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/model.config
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_waffle
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_waffle/model.sdf
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_waffle/model.config
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_waffle/model-1_4.sdf
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//rviz
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//rviz/tb3_gazebo.rviz
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//urdf
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//urdf/common_properties.urdf
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//urdf/turtlebot3_waffle.urdf
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//worlds
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//worlds/competition_world.world
+[0.088s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//worlds/empty_world.world
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/include/
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/include//turtlebot3_project3
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/include//turtlebot3_project3/turtlebot3_drive.hpp
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/lib/turtlebot3_project3/teleop.py
+[0.089s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/lib/turtlebot3_project3/astar_sim.py
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/ament_index/resource_index/package_run_dependencies/turtlebot3_project3
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/ament_index/resource_index/parent_prefix_path/turtlebot3_project3
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/environment/ament_prefix_path.sh
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/environment/ament_prefix_path.dsv
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/environment/path.sh
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/environment/path.dsv
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/local_setup.bash
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/local_setup.sh
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/local_setup.zsh
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/local_setup.dsv
+[0.089s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/package.dsv
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/ament_index/resource_index/packages/turtlebot3_project3
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/cmake/ament_cmake_export_include_directories-extras.cmake
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/cmake/ament_cmake_export_dependencies-extras.cmake
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/cmake/turtlebot3_project3Config.cmake
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/cmake/turtlebot3_project3Config-version.cmake
+[0.089s] -- Up-to-date: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/package.xml
+[0.090s] Invoked command in '/home/ychen921/project3_ws/build/turtlebot3_project3' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/galactic /usr/bin/cmake --install /home/ychen921/project3_ws/build/turtlebot3_project3

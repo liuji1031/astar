@@ -1,0 +1,2 @@
+Invoking command in '/home/ychen921/project3_ws/build/turtlebot3_project3': CMAKE_PREFIX_PATH=/opt/ros/galactic CONDA_PROMPT_MODIFIER=(base) /usr/bin/cmake /home/ychen921/project3_ws/src/turtlebot3_project3 -DCMAKE_INSTALL_PREFIX=/home/ychen921/project3_ws/install/turtlebot3_project3
+Invoked command in '/home/ychen921/project3_ws/build/turtlebot3_project3' returned '1': CMAKE_PREFIX_PATH=/opt/ros/galactic CONDA_PROMPT_MODIFIER=(base) /usr/bin/cmake /home/ychen921/project3_ws/src/turtlebot3_project3 -DCMAKE_INSTALL_PREFIX=/home/ychen921/project3_ws/install/turtlebot3_project3

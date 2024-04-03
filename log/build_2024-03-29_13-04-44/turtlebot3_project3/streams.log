@@ -1,0 +1,112 @@
+[0.008s] Invoking command in '/home/ychen921/project3_ws/build/turtlebot3_project3': CMAKE_PREFIX_PATH=/opt/ros/galactic CONDA_PROMPT_MODIFIER=(base) /usr/bin/cmake /home/ychen921/project3_ws/src/turtlebot3_project3 -DCMAKE_INSTALL_PREFIX=/home/ychen921/project3_ws/install/turtlebot3_project3
+[0.015s] -- Found ament_cmake: 1.1.6 (/opt/ros/galactic/share/ament_cmake/cmake)
+[0.032s] -- Using PYTHON_EXECUTABLE: /home/ychen921/anaconda3/bin/python3
+[0.095s] -- Found DART: /usr/include (Required is at least version "6.6") found components: dart 
+[0.112s] CMake Warning at /usr/share/cmake-3.16/Modules/FindProtobuf.cmake:499 (message):
+[0.112s]   Protobuf compiler version 3.19.1 doesn't match library version 3.6.1
+[0.112s] Call Stack (most recent call first):
+[0.112s]   /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:203 (find_package)
+[0.112s]   CMakeLists.txt:23 (find_package)
+[0.112s] 
+[0.112s] 
+[0.113s] -- Found Protobuf: /usr/lib/x86_64-linux-gnu/libprotobuf.so;-lpthread (found version "3.6.1") 
+[0.114s] -- Looking for ignition-math6 -- found version 6.15.1
+[0.117s] -- Searching for dependencies of ignition-math6
+[0.118s] -- Looking for OGRE...
+[0.121s] -- Found Ogre Ghadamon (1.9.0)
+[0.121s] -- Found OGRE: optimized;/usr/lib/x86_64-linux-gnu/libOgreMain.so;debug;/usr/lib/x86_64-linux-gnu/libOgreMain.so
+[0.127s] -- Looking for OGRE_Paging...
+[0.127s] -- Found OGRE_Paging: optimized;/usr/lib/x86_64-linux-gnu/libOgrePaging.so;debug;/usr/lib/x86_64-linux-gnu/libOgrePaging.so
+[0.127s] -- Looking for OGRE_Terrain...
+[0.127s] -- Found OGRE_Terrain: optimized;/usr/lib/x86_64-linux-gnu/libOgreTerrain.so;debug;/usr/lib/x86_64-linux-gnu/libOgreTerrain.so
+[0.127s] -- Looking for OGRE_Property...
+[0.128s] -- Found OGRE_Property: optimized;/usr/lib/x86_64-linux-gnu/libOgreProperty.so;debug;/usr/lib/x86_64-linux-gnu/libOgreProperty.so
+[0.128s] -- Looking for OGRE_RTShaderSystem...
+[0.128s] -- Found OGRE_RTShaderSystem: optimized;/usr/lib/x86_64-linux-gnu/libOgreRTShaderSystem.so;debug;/usr/lib/x86_64-linux-gnu/libOgreRTShaderSystem.so
+[0.128s] -- Looking for OGRE_Volume...
+[0.128s] -- Found OGRE_Volume: optimized;/usr/lib/x86_64-linux-gnu/libOgreVolume.so;debug;/usr/lib/x86_64-linux-gnu/libOgreVolume.so
+[0.128s] -- Looking for OGRE_Overlay...
+[0.128s] -- Found OGRE_Overlay: optimized;/usr/lib/x86_64-linux-gnu/libOgreOverlay.so;debug;/usr/lib/x86_64-linux-gnu/libOgreOverlay.so
+[0.197s] -- Looking for ignition-math6 -- found version 6.15.1
+[0.197s] -- Looking for ignition-transport8 -- found version 8.3.0
+[0.197s] -- Searching for dependencies of ignition-transport8
+[0.208s] CMake Warning at /usr/share/cmake-3.16/Modules/FindProtobuf.cmake:499 (message):
+[0.208s]   Protobuf compiler version 3.19.1 doesn't match library version 3.6.1
+[0.208s] Call Stack (most recent call first):
+[0.208s]   /usr/share/cmake/ignition-cmake2/cmake2/FindIgnProtobuf.cmake:34 (find_package)
+[0.208s]   /usr/lib/x86_64-linux-gnu/cmake/ignition-transport8/ignition-transport8-config.cmake:92 (find_package)
+[0.208s]   /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:235 (find_package)
+[0.208s]   CMakeLists.txt:23 (find_package)
+[0.208s] 
+[0.208s] 
+[0.208s] -- Found Protobuf: /usr/lib/x86_64-linux-gnu/libprotobuf.so;-lpthread (found suitable version "3.6.1", minimum required is "3") 
+[0.212s] -- Checking for module 'uuid'
+[0.220s] --   Found uuid, version 2.34.0
+[0.239s] -- Looking for ignition-msgs5 -- found version 5.10.0
+[0.239s] -- Searching for dependencies of ignition-msgs5
+[0.249s] CMake Warning at /usr/share/cmake-3.16/Modules/FindProtobuf.cmake:499 (message):
+[0.249s]   Protobuf compiler version 3.19.1 doesn't match library version 3.6.1
+[0.249s] Call Stack (most recent call first):
+[0.249s]   /usr/share/cmake/ignition-cmake2/cmake2/FindIgnProtobuf.cmake:34 (find_package)
+[0.249s]   /usr/lib/x86_64-linux-gnu/cmake/ignition-msgs5/ignition-msgs5-config.cmake:92 (find_package)
+[0.249s]   /usr/lib/x86_64-linux-gnu/cmake/ignition-transport8/ignition-transport8-config.cmake:96 (find_package)
+[0.249s]   /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:235 (find_package)
+[0.249s]   CMakeLists.txt:23 (find_package)
+[0.249s] 
+[0.249s] 
+[0.250s] -- Looking for ignition-math6 -- found version 6.15.1
+[0.253s] -- Checking for module 'tinyxml2'
+[0.260s] --   Found tinyxml2, version 6.2.0
+[0.279s] -- Looking for ignition-msgs5 -- found version 5.10.0
+[0.279s] -- Looking for ignition-common3 -- found version 3.14.2
+[0.280s] -- Searching for dependencies of ignition-common3
+[0.280s] -- Looking for dlfcn.h - found
+[0.280s] -- Looking for libdl - found
+[0.286s] -- Searching for <ignition-common3> component [graphics]
+[0.286s] -- Looking for ignition-common3-graphics -- found version 3.14.2
+[0.286s] -- Searching for dependencies of ignition-common3-graphics
+[0.286s] -- Looking for ignition-math6 -- found version 6.15.1
+[0.287s] -- Looking for ignition-fuel_tools4 -- found version 4.6.0
+[0.287s] -- Searching for dependencies of ignition-fuel_tools4
+[0.302s] -- Checking for module 'jsoncpp'
+[0.310s] --   Found jsoncpp, version 1.7.4
+[0.332s] -- Checking for module 'libzip'
+[0.339s] --   Found libzip, version 1.5.1
+[0.358s] -- Looking for ignition-common3 -- found version 3.14.2
+[0.358s] -- Looking for ignition-math6 -- found version 6.15.1
+[0.359s] -- Looking for ignition-msgs5 -- found version 5.10.0
+[0.360s] -- Found gazebo_ros_pkgs: 3.5.2 (/opt/ros/galactic/share/gazebo_ros_pkgs/cmake)
+[0.361s] -- Found geometry_msgs: 2.2.4 (/opt/ros/galactic/share/geometry_msgs/cmake)
+[0.372s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[0.375s] -- Found rosidl_adapter: 2.2.3 (/opt/ros/galactic/share/rosidl_adapter/cmake)
+[0.417s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "1.1.1f")  
+[0.433s] -- Found FastRTPS: /opt/ros/galactic/include  
+[0.478s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[0.522s] -- Found nav_msgs: 2.2.4 (/opt/ros/galactic/share/nav_msgs/cmake)
+[0.562s] -- Found rclcpp: 9.2.2 (/opt/ros/galactic/share/rclcpp/cmake)
+[0.587s] -- Found rmw_implementation_cmake: 3.3.1 (/opt/ros/galactic/share/rmw_implementation_cmake/cmake)
+[0.588s] -- Found rmw_cyclonedds_cpp: 0.22.6 (/opt/ros/galactic/share/rmw_cyclonedds_cpp/cmake)
+[0.598s] -- Using RMW implementation 'rmw_cyclonedds_cpp' as default
+[0.599s] -- Found Threads: TRUE  
+[0.671s] -- Found sensor_msgs: 2.2.4 (/opt/ros/galactic/share/sensor_msgs/cmake)
+[0.708s] -- Found tf2: 0.17.5 (/opt/ros/galactic/share/tf2/cmake)
+[0.730s] Traceback (most recent call last):
+[0.730s]   File "/opt/ros/galactic/share/ament_cmake_core/cmake/core/package_xml_2_cmake.py", line 22, in <module>
+[0.730s]     from catkin_pkg.package import evaluate_condition
+[0.730s] ModuleNotFoundError: No module named 'catkin_pkg'
+[0.732s] CMake Error at /opt/ros/galactic/share/ament_cmake_core/cmake/core/ament_package_xml.cmake:94 (message):
+[0.732s]   execute_process(/home/ychen921/anaconda3/bin/python3
+[0.732s]   /opt/ros/galactic/share/ament_cmake_core/cmake/core/package_xml_2_cmake.py
+[0.732s]   /home/ychen921/project3_ws/src/turtlebot3_project3/package.xml
+[0.733s]   /home/ychen921/project3_ws/build/turtlebot3_project3/ament_cmake_core/package.cmake)
+[0.733s]   returned error code 1
+[0.733s] Call Stack (most recent call first):
+[0.733s]   /opt/ros/galactic/share/ament_cmake_core/cmake/core/ament_package_xml.cmake:49 (_ament_package_xml)
+[0.733s]   /opt/ros/galactic/share/ament_cmake_core/cmake/core/ament_package.cmake:63 (ament_package_xml)
+[0.733s]   CMakeLists.txt:90 (ament_package)
+[0.733s] 
+[0.733s] 
+[0.734s] -- Configuring incomplete, errors occurred!
+[0.734s] See also "/home/ychen921/project3_ws/build/turtlebot3_project3/CMakeFiles/CMakeOutput.log".
+[0.734s] See also "/home/ychen921/project3_ws/build/turtlebot3_project3/CMakeFiles/CMakeError.log".
+[0.741s] Invoked command in '/home/ychen921/project3_ws/build/turtlebot3_project3' returned '1': CMAKE_PREFIX_PATH=/opt/ros/galactic CONDA_PROMPT_MODIFIER=(base) /usr/bin/cmake /home/ychen921/project3_ws/src/turtlebot3_project3 -DCMAKE_INSTALL_PREFIX=/home/ychen921/project3_ws/install/turtlebot3_project3

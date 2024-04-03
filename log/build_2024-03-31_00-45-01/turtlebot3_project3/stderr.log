@@ -1,0 +1,26 @@
+CMake Warning at /usr/share/cmake-3.16/Modules/FindProtobuf.cmake:499 (message):
+  Protobuf compiler version 3.20.3 doesn't match library version 3.6.1
+Call Stack (most recent call first):
+  /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:203 (find_package)
+  CMakeLists.txt:23 (find_package)
+
+
+CMake Warning at /usr/share/cmake-3.16/Modules/FindProtobuf.cmake:499 (message):
+  Protobuf compiler version 3.20.3 doesn't match library version 3.6.1
+Call Stack (most recent call first):
+  /usr/share/cmake/ignition-cmake2/cmake2/FindIgnProtobuf.cmake:34 (find_package)
+  /usr/lib/x86_64-linux-gnu/cmake/ignition-transport8/ignition-transport8-config.cmake:92 (find_package)
+  /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:235 (find_package)
+  CMakeLists.txt:23 (find_package)
+
+
+CMake Warning at /usr/share/cmake-3.16/Modules/FindProtobuf.cmake:499 (message):
+  Protobuf compiler version 3.20.3 doesn't match library version 3.6.1
+Call Stack (most recent call first):
+  /usr/share/cmake/ignition-cmake2/cmake2/FindIgnProtobuf.cmake:34 (find_package)
+  /usr/lib/x86_64-linux-gnu/cmake/ignition-msgs5/ignition-msgs5-config.cmake:92 (find_package)
+  /usr/lib/x86_64-linux-gnu/cmake/ignition-transport8/ignition-transport8-config.cmake:96 (find_package)
+  /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:235 (find_package)
+  CMakeLists.txt:23 (find_package)
+
+

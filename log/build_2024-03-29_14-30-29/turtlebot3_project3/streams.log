@@ -1,0 +1,159 @@
+[0.017s] Invoking command in '/home/ychen921/project3_ws/build/turtlebot3_project3': CMAKE_PREFIX_PATH=/opt/ros/galactic CONDA_PROMPT_MODIFIER=(base) /usr/bin/cmake /home/ychen921/project3_ws/src/turtlebot3_project3 -DCMAKE_INSTALL_PREFIX=/home/ychen921/project3_ws/install/turtlebot3_project3
+[0.161s] -- Found ament_cmake: 1.1.6 (/opt/ros/galactic/share/ament_cmake/cmake)
+[0.197s] -- Using PYTHON_EXECUTABLE: /home/ychen921/anaconda3/bin/python3
+[0.417s] -- Found DART: /usr/include (Required is at least version "6.6") found components: dart 
+[0.606s] CMake Warning at /usr/share/cmake-3.16/Modules/FindProtobuf.cmake:499 (message):
+[0.606s]   Protobuf compiler version 3.19.1 doesn't match library version 3.6.1
+[0.606s] Call Stack (most recent call first):
+[0.606s]   /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:203 (find_package)
+[0.606s]   CMakeLists.txt:23 (find_package)
+[0.606s] 
+[0.606s] 
+[0.609s] -- Found Protobuf: /usr/lib/x86_64-linux-gnu/libprotobuf.so;-lpthread (found version "3.6.1") 
+[0.619s] -- Looking for ignition-math6 -- found version 6.15.1
+[0.635s] -- Searching for dependencies of ignition-math6
+[0.641s] -- Looking for OGRE...
+[0.649s] -- Found Ogre Ghadamon (1.9.0)
+[0.650s] -- Found OGRE: optimized;/usr/lib/x86_64-linux-gnu/libOgreMain.so;debug;/usr/lib/x86_64-linux-gnu/libOgreMain.so
+[0.657s] -- Looking for OGRE_Paging...
+[0.657s] -- Found OGRE_Paging: optimized;/usr/lib/x86_64-linux-gnu/libOgrePaging.so;debug;/usr/lib/x86_64-linux-gnu/libOgrePaging.so
+[0.657s] -- Looking for OGRE_Terrain...
+[0.657s] -- Found OGRE_Terrain: optimized;/usr/lib/x86_64-linux-gnu/libOgreTerrain.so;debug;/usr/lib/x86_64-linux-gnu/libOgreTerrain.so
+[0.657s] -- Looking for OGRE_Property...
+[0.657s] -- Found OGRE_Property: optimized;/usr/lib/x86_64-linux-gnu/libOgreProperty.so;debug;/usr/lib/x86_64-linux-gnu/libOgreProperty.so
+[0.657s] -- Looking for OGRE_RTShaderSystem...
+[0.657s] -- Found OGRE_RTShaderSystem: optimized;/usr/lib/x86_64-linux-gnu/libOgreRTShaderSystem.so;debug;/usr/lib/x86_64-linux-gnu/libOgreRTShaderSystem.so
+[0.657s] -- Looking for OGRE_Volume...
+[0.657s] -- Found OGRE_Volume: optimized;/usr/lib/x86_64-linux-gnu/libOgreVolume.so;debug;/usr/lib/x86_64-linux-gnu/libOgreVolume.so
+[0.657s] -- Looking for OGRE_Overlay...
+[0.657s] -- Found OGRE_Overlay: optimized;/usr/lib/x86_64-linux-gnu/libOgreOverlay.so;debug;/usr/lib/x86_64-linux-gnu/libOgreOverlay.so
+[0.734s] -- Looking for ignition-math6 -- found version 6.15.1
+[0.770s] -- Looking for ignition-transport8 -- found version 8.3.0
+[0.771s] -- Searching for dependencies of ignition-transport8
+[0.796s] CMake Warning at /usr/share/cmake-3.16/Modules/FindProtobuf.cmake:499 (message):
+[0.796s]   Protobuf compiler version 3.19.1 doesn't match library version 3.6.1
+[0.796s] Call Stack (most recent call first):
+[0.796s]   /usr/share/cmake/ignition-cmake2/cmake2/FindIgnProtobuf.cmake:34 (find_package)
+[0.796s]   /usr/lib/x86_64-linux-gnu/cmake/ignition-transport8/ignition-transport8-config.cmake:92 (find_package)
+[0.796s]   /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:235 (find_package)
+[0.797s]   CMakeLists.txt:23 (find_package)
+[0.797s] 
+[0.797s] 
+[0.797s] -- Found Protobuf: /usr/lib/x86_64-linux-gnu/libprotobuf.so;-lpthread (found suitable version "3.6.1", minimum required is "3") 
+[0.803s] -- Checking for module 'uuid'
+[0.813s] --   Found uuid, version 2.34.0
+[0.833s] -- Looking for ignition-msgs5 -- found version 5.10.0
+[0.834s] -- Searching for dependencies of ignition-msgs5
+[0.845s] CMake Warning at /usr/share/cmake-3.16/Modules/FindProtobuf.cmake:499 (message):
+[0.845s]   Protobuf compiler version 3.19.1 doesn't match library version 3.6.1
+[0.845s] Call Stack (most recent call first):
+[0.845s]   /usr/share/cmake/ignition-cmake2/cmake2/FindIgnProtobuf.cmake:34 (find_package)
+[0.845s]   /usr/lib/x86_64-linux-gnu/cmake/ignition-msgs5/ignition-msgs5-config.cmake:92 (find_package)
+[0.845s]   /usr/lib/x86_64-linux-gnu/cmake/ignition-transport8/ignition-transport8-config.cmake:96 (find_package)
+[0.845s]   /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:235 (find_package)
+[0.845s]   CMakeLists.txt:23 (find_package)
+[0.845s] 
+[0.845s] 
+[0.846s] -- Looking for ignition-math6 -- found version 6.15.1
+[0.849s] -- Checking for module 'tinyxml2'
+[0.858s] --   Found tinyxml2, version 6.2.0
+[0.880s] -- Looking for ignition-msgs5 -- found version 5.10.0
+[0.882s] -- Looking for ignition-common3 -- found version 3.14.2
+[0.882s] -- Searching for dependencies of ignition-common3
+[0.882s] -- Looking for dlfcn.h - found
+[0.882s] -- Looking for libdl - found
+[0.889s] -- Searching for <ignition-common3> component [graphics]
+[0.891s] -- Looking for ignition-common3-graphics -- found version 3.14.2
+[0.891s] -- Searching for dependencies of ignition-common3-graphics
+[0.891s] -- Looking for ignition-math6 -- found version 6.15.1
+[0.894s] -- Looking for ignition-fuel_tools4 -- found version 4.6.0
+[0.894s] -- Searching for dependencies of ignition-fuel_tools4
+[0.918s] -- Checking for module 'jsoncpp'
+[0.926s] --   Found jsoncpp, version 1.7.4
+[0.950s] -- Checking for module 'libzip'
+[0.960s] --   Found libzip, version 1.5.1
+[0.981s] -- Looking for ignition-common3 -- found version 3.14.2
+[0.981s] -- Looking for ignition-math6 -- found version 6.15.1
+[0.981s] -- Looking for ignition-msgs5 -- found version 5.10.0
+[0.984s] -- Found gazebo_ros_pkgs: 3.5.2 (/opt/ros/galactic/share/gazebo_ros_pkgs/cmake)
+[0.985s] -- Found geometry_msgs: 2.2.4 (/opt/ros/galactic/share/geometry_msgs/cmake)
+[1.018s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[1.025s] -- Found rosidl_adapter: 2.2.3 (/opt/ros/galactic/share/rosidl_adapter/cmake)
+[1.144s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[1.224s] -- Found nav_msgs: 2.2.4 (/opt/ros/galactic/share/nav_msgs/cmake)
+[1.273s] -- Found rclcpp: 9.2.2 (/opt/ros/galactic/share/rclcpp/cmake)
+[1.339s] -- Found rmw_implementation_cmake: 3.3.1 (/opt/ros/galactic/share/rmw_implementation_cmake/cmake)
+[1.345s] -- Found rmw_cyclonedds_cpp: 0.22.6 (/opt/ros/galactic/share/rmw_cyclonedds_cpp/cmake)
+[1.367s] -- Using RMW implementation 'rmw_cyclonedds_cpp' as default
+[1.471s] -- Found sensor_msgs: 2.2.4 (/opt/ros/galactic/share/sensor_msgs/cmake)
+[1.520s] -- Found tf2: 0.17.5 (/opt/ros/galactic/share/tf2/cmake)
+[1.626s] -- Configuring done
+[1.642s] -- Generating done
+[1.644s] -- Build files have been written to: /home/ychen921/project3_ws/build/turtlebot3_project3
+[1.651s] Invoked command in '/home/ychen921/project3_ws/build/turtlebot3_project3' returned '0': CMAKE_PREFIX_PATH=/opt/ros/galactic CONDA_PROMPT_MODIFIER=(base) /usr/bin/cmake /home/ychen921/project3_ws/src/turtlebot3_project3 -DCMAKE_INSTALL_PREFIX=/home/ychen921/project3_ws/install/turtlebot3_project3
+[1.653s] Invoking command in '/home/ychen921/project3_ws/build/turtlebot3_project3': CMAKE_PREFIX_PATH=/opt/ros/galactic CONDA_PROMPT_MODIFIER=(base) /usr/bin/cmake --build /home/ychen921/project3_ws/build/turtlebot3_project3 -- -j20 -l20
+[1.681s] [35m[1mScanning dependencies of target turtlebot3_drive[0m
+[1.923s] [ 50%] [32mBuilding CXX object CMakeFiles/turtlebot3_drive.dir/src/turtlebot3_drive.cpp.o[0m
+[7.686s] [100%] [32m[1mLinking CXX executable turtlebot3_drive[0m
+[8.105s] [100%] Built target turtlebot3_drive
+[8.112s] Invoked command in '/home/ychen921/project3_ws/build/turtlebot3_project3' returned '0': CMAKE_PREFIX_PATH=/opt/ros/galactic CONDA_PROMPT_MODIFIER=(base) /usr/bin/cmake --build /home/ychen921/project3_ws/build/turtlebot3_project3 -- -j20 -l20
+[8.133s] Invoking command in '/home/ychen921/project3_ws/build/turtlebot3_project3': CMAKE_PREFIX_PATH=/opt/ros/galactic CONDA_PROMPT_MODIFIER=(base) /usr/bin/cmake --install /home/ychen921/project3_ws/build/turtlebot3_project3
+[8.137s] -- Install configuration: ""
+[8.139s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/lib/turtlebot3_project3/turtlebot3_drive
+[8.141s] -- Set runtime path of "/home/ychen921/project3_ws/install/turtlebot3_project3/lib/turtlebot3_project3/turtlebot3_drive" to ""
+[8.141s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//launch
+[8.142s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//launch/robot_state_publisher.launch.py
+[8.143s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//launch/competition_world.launch.py
+[8.143s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//launch/empty_world.launch.py
+[8.143s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//launch/spawn_turtlebot3.launch.py
+[8.144s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models
+[8.145s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_world
+[8.146s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_world/meshes
+[8.147s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_world/meshes/hexagon.dae
+[8.147s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_world/meshes/wall.dae
+[8.148s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_world/model.sdf
+[8.148s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_world/model.config
+[8.149s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_world/model-1_4.sdf
+[8.150s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common
+[8.150s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/meshes
+[8.151s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/meshes/tire.dae
+[8.152s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/meshes/waffle_base.dae
+[8.153s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/meshes/waffle_pi_base.dae
+[8.153s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/meshes/lds.dae
+[8.154s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/meshes/r200.dae
+[8.158s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/meshes/burger_base.dae
+[8.158s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_common/model.config
+[8.158s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_waffle
+[8.160s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_waffle/model.sdf
+[8.160s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_waffle/model.config
+[8.161s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//models/turtlebot3_waffle/model-1_4.sdf
+[8.161s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//rviz
+[8.162s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//rviz/tb3_gazebo.rviz
+[8.163s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//urdf
+[8.164s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//urdf/common_properties.urdf
+[8.164s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//urdf/turtlebot3_waffle.urdf
+[8.165s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//worlds
+[8.165s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//worlds/competition_world.world
+[8.167s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3//worlds/empty_world.world
+[8.167s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/include/
+[8.168s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/include//turtlebot3_project3
+[8.168s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/include//turtlebot3_project3/turtlebot3_drive.hpp
+[8.168s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/lib/turtlebot3_project3/teleop.py
+[8.170s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/ament_index/resource_index/package_run_dependencies/turtlebot3_project3
+[8.170s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/ament_index/resource_index/parent_prefix_path/turtlebot3_project3
+[8.171s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/environment/ament_prefix_path.sh
+[8.171s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/environment/ament_prefix_path.dsv
+[8.171s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/environment/path.sh
+[8.171s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/environment/path.dsv
+[8.171s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/local_setup.bash
+[8.171s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/local_setup.sh
+[8.171s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/local_setup.zsh
+[8.171s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/local_setup.dsv
+[8.171s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/package.dsv
+[8.172s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/ament_index/resource_index/packages/turtlebot3_project3
+[8.172s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/cmake/ament_cmake_export_include_directories-extras.cmake
+[8.172s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/cmake/ament_cmake_export_dependencies-extras.cmake
+[8.172s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/cmake/turtlebot3_project3Config.cmake
+[8.172s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/cmake/turtlebot3_project3Config-version.cmake
+[8.172s] -- Installing: /home/ychen921/project3_ws/install/turtlebot3_project3/share/turtlebot3_project3/package.xml
+[8.174s] Invoked command in '/home/ychen921/project3_ws/build/turtlebot3_project3' returned '0': CMAKE_PREFIX_PATH=/opt/ros/galactic CONDA_PROMPT_MODIFIER=(base) /usr/bin/cmake --install /home/ychen921/project3_ws/build/turtlebot3_project3

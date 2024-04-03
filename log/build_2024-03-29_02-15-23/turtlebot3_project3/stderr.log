@@ -1,0 +1,43 @@
+CMake Warning at /usr/share/cmake-3.16/Modules/FindProtobuf.cmake:499 (message):
+  Protobuf compiler version 3.19.1 doesn't match library version 3.6.1
+Call Stack (most recent call first):
+  /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:203 (find_package)
+  CMakeLists.txt:23 (find_package)
+
+
+CMake Warning at /usr/share/cmake-3.16/Modules/FindProtobuf.cmake:499 (message):
+  Protobuf compiler version 3.19.1 doesn't match library version 3.6.1
+Call Stack (most recent call first):
+  /usr/share/cmake/ignition-cmake2/cmake2/FindIgnProtobuf.cmake:34 (find_package)
+  /usr/lib/x86_64-linux-gnu/cmake/ignition-transport8/ignition-transport8-config.cmake:92 (find_package)
+  /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:235 (find_package)
+  CMakeLists.txt:23 (find_package)
+
+
+CMake Warning at /usr/share/cmake-3.16/Modules/FindProtobuf.cmake:499 (message):
+  Protobuf compiler version 3.19.1 doesn't match library version 3.6.1
+Call Stack (most recent call first):
+  /usr/share/cmake/ignition-cmake2/cmake2/FindIgnProtobuf.cmake:34 (find_package)
+  /usr/lib/x86_64-linux-gnu/cmake/ignition-msgs5/ignition-msgs5-config.cmake:92 (find_package)
+  /usr/lib/x86_64-linux-gnu/cmake/ignition-transport8/ignition-transport8-config.cmake:96 (find_package)
+  /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:235 (find_package)
+  CMakeLists.txt:23 (find_package)
+
+
+CMake Error at CMakeLists.txt:24 (find_package):
+  By not providing "Findgazebo_ros_pkgs.cmake" in CMAKE_MODULE_PATH this
+  project has asked CMake to find a package configuration file provided by
+  "gazebo_ros_pkgs", but CMake did not find one.
+
+  Could not find a package configuration file provided by "gazebo_ros_pkgs"
+  with any of the following names:
+
+    gazebo_ros_pkgsConfig.cmake
+    gazebo_ros_pkgs-config.cmake
+
+  Add the installation prefix of "gazebo_ros_pkgs" to CMAKE_PREFIX_PATH or
+  set "gazebo_ros_pkgs_DIR" to a directory containing one of the above files.
+  If "gazebo_ros_pkgs" provides a separate development package or SDK, be
+  sure it has been installed.
+
+

@@ -1,0 +1,128 @@
+[0.006s] Invoking command in '/home/ychen921/project3_ws/build/turtlebot3_project3': CMAKE_PREFIX_PATH=/opt/ros/galactic CONDA_PROMPT_MODIFIER=(base) /usr/bin/cmake /home/ychen921/project3_ws/src/turtlebot3_project3 -DCMAKE_INSTALL_PREFIX=/home/ychen921/project3_ws/install/turtlebot3_project3
+[0.038s] -- The C compiler identification is GNU 9.4.0
+[0.067s] -- The CXX compiler identification is GNU 9.4.0
+[0.070s] -- Check for working C compiler: /usr/bin/cc
+[0.108s] -- Check for working C compiler: /usr/bin/cc -- works
+[0.108s] -- Detecting C compiler ABI info
+[0.146s] -- Detecting C compiler ABI info - done
+[0.153s] -- Detecting C compile features
+[0.153s] -- Detecting C compile features - done
+[0.154s] -- Check for working CXX compiler: /usr/bin/c++
+[0.196s] -- Check for working CXX compiler: /usr/bin/c++ -- works
+[0.197s] -- Detecting CXX compiler ABI info
+[0.241s] -- Detecting CXX compiler ABI info - done
+[0.248s] -- Detecting CXX compile features
+[0.248s] -- Detecting CXX compile features - done
+[0.249s] -- Found ament_cmake: 1.1.6 (/opt/ros/galactic/share/ament_cmake/cmake)
+[0.266s] -- Found PythonInterp: /home/ychen921/anaconda3/bin/python3 (found suitable version "3.9.12", minimum required is "3") 
+[0.266s] -- Using PYTHON_EXECUTABLE: /home/ychen921/anaconda3/bin/python3
+[0.312s] -- Found PkgConfig: /usr/bin/pkg-config (found version "0.29.1") 
+[0.314s] -- Checking for module 'bullet>=2.82'
+[0.322s] --   Found bullet, version 2.88
+[0.384s] -- Found ccd: /usr/include (found suitable version "2.0", minimum required is "2.0") 
+[0.412s] -- Found fcl: /usr/include (found suitable version "0.5.0", minimum required is "0.3.2") 
+[0.442s] -- Found assimp: /usr/include (found version "5.0.0") 
+[0.454s] -- Found DART: /usr/include (Required is at least version "6.6") found components: dart 
+[0.621s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake (found suitable version "1.71.0", minimum required is "1.40.0") found components: thread system filesystem program_options regex iostreams date_time 
+[0.633s] CMake Warning at /usr/share/cmake-3.16/Modules/FindProtobuf.cmake:499 (message):
+[0.633s]   Protobuf compiler version 3.19.1 doesn't match library version 3.6.1
+[0.633s] Call Stack (most recent call first):
+[0.633s]   /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:203 (find_package)
+[0.633s]   CMakeLists.txt:23 (find_package)
+[0.633s] 
+[0.633s] 
+[0.634s] -- Found Protobuf: /usr/lib/x86_64-linux-gnu/libprotobuf.so;-lpthread (found version "3.6.1") 
+[0.638s] -- Looking for ignition-math6 -- found version 6.15.1
+[0.642s] -- Searching for dependencies of ignition-math6
+[0.643s] -- Looking for OGRE...
+[0.643s] -- OGRE_PREFIX_WATCH changed.
+[0.646s] -- Checking for module 'OGRE'
+[0.654s] --   Found OGRE, version 1.9.0
+[0.674s] -- Found Ogre Ghadamon (1.9.0)
+[0.678s] -- Found OGRE: optimized;/usr/lib/x86_64-linux-gnu/libOgreMain.so;debug;/usr/lib/x86_64-linux-gnu/libOgreMain.so
+[0.684s] -- Looking for OGRE_Paging...
+[0.687s] -- Found OGRE_Paging: optimized;/usr/lib/x86_64-linux-gnu/libOgrePaging.so;debug;/usr/lib/x86_64-linux-gnu/libOgrePaging.so
+[0.687s] -- Looking for OGRE_Terrain...
+[0.690s] -- Found OGRE_Terrain: optimized;/usr/lib/x86_64-linux-gnu/libOgreTerrain.so;debug;/usr/lib/x86_64-linux-gnu/libOgreTerrain.so
+[0.690s] -- Looking for OGRE_Property...
+[0.693s] -- Found OGRE_Property: optimized;/usr/lib/x86_64-linux-gnu/libOgreProperty.so;debug;/usr/lib/x86_64-linux-gnu/libOgreProperty.so
+[0.693s] -- Looking for OGRE_RTShaderSystem...
+[0.696s] -- Found OGRE_RTShaderSystem: optimized;/usr/lib/x86_64-linux-gnu/libOgreRTShaderSystem.so;debug;/usr/lib/x86_64-linux-gnu/libOgreRTShaderSystem.so
+[0.697s] -- Looking for OGRE_Volume...
+[0.700s] -- Found OGRE_Volume: optimized;/usr/lib/x86_64-linux-gnu/libOgreVolume.so;debug;/usr/lib/x86_64-linux-gnu/libOgreVolume.so
+[0.700s] -- Looking for OGRE_Overlay...
+[0.703s] -- Found OGRE_Overlay: optimized;/usr/lib/x86_64-linux-gnu/libOgreOverlay.so;debug;/usr/lib/x86_64-linux-gnu/libOgreOverlay.so
+[0.766s] -- Looking for ignition-math6 -- found version 6.15.1
+[0.767s] -- Looking for ignition-transport8 -- found version 8.3.0
+[0.767s] -- Searching for dependencies of ignition-transport8
+[0.777s] CMake Warning at /usr/share/cmake-3.16/Modules/FindProtobuf.cmake:499 (message):
+[0.778s]   Protobuf compiler version 3.19.1 doesn't match library version 3.6.1
+[0.778s] Call Stack (most recent call first):
+[0.778s]   /usr/share/cmake/ignition-cmake2/cmake2/FindIgnProtobuf.cmake:34 (find_package)
+[0.778s]   /usr/lib/x86_64-linux-gnu/cmake/ignition-transport8/ignition-transport8-config.cmake:92 (find_package)
+[0.778s]   /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:235 (find_package)
+[0.778s]   CMakeLists.txt:23 (find_package)
+[0.778s] 
+[0.778s] 
+[0.778s] -- Found Protobuf: /usr/lib/x86_64-linux-gnu/libprotobuf.so;-lpthread (found suitable version "3.6.1", minimum required is "3") 
+[0.782s] -- Checking for module 'uuid'
+[0.790s] --   Found uuid, version 2.34.0
+[0.811s] -- Found UUID: TRUE  
+[0.812s] -- Looking for ignition-msgs5 -- found version 5.10.0
+[0.812s] -- Searching for dependencies of ignition-msgs5
+[0.822s] CMake Warning at /usr/share/cmake-3.16/Modules/FindProtobuf.cmake:499 (message):
+[0.823s]   Protobuf compiler version 3.19.1 doesn't match library version 3.6.1
+[0.823s] Call Stack (most recent call first):
+[0.823s]   /usr/share/cmake/ignition-cmake2/cmake2/FindIgnProtobuf.cmake:34 (find_package)
+[0.823s]   /usr/lib/x86_64-linux-gnu/cmake/ignition-msgs5/ignition-msgs5-config.cmake:92 (find_package)
+[0.823s]   /usr/lib/x86_64-linux-gnu/cmake/ignition-transport8/ignition-transport8-config.cmake:96 (find_package)
+[0.823s]   /usr/lib/x86_64-linux-gnu/cmake/gazebo/gazebo-config.cmake:235 (find_package)
+[0.823s]   CMakeLists.txt:23 (find_package)
+[0.823s] 
+[0.823s] 
+[0.824s] -- Looking for ignition-math6 -- found version 6.15.1
+[0.826s] -- Checking for module 'tinyxml2'
+[0.834s] --   Found tinyxml2, version 6.2.0
+[0.855s] -- Looking for ignition-msgs5 -- found version 5.10.0
+[0.856s] -- Looking for ignition-common3 -- found version 3.14.2
+[0.856s] -- Searching for dependencies of ignition-common3
+[0.856s] -- Looking for dlfcn.h - found
+[0.857s] -- Looking for libdl - found
+[0.858s] -- Found DL: TRUE  
+[0.862s] -- Searching for <ignition-common3> component [graphics]
+[0.863s] -- Looking for ignition-common3-graphics -- found version 3.14.2
+[0.864s] -- Searching for dependencies of ignition-common3-graphics
+[0.864s] -- Looking for ignition-math6 -- found version 6.15.1
+[0.866s] -- Looking for ignition-fuel_tools4 -- found version 4.6.0
+[0.866s] -- Searching for dependencies of ignition-fuel_tools4
+[0.904s] -- Found CURL: /usr/lib/x86_64-linux-gnu/libcurl.so (found version "7.68.0")  
+[0.909s] -- Checking for module 'jsoncpp'
+[0.916s] --   Found jsoncpp, version 1.7.4
+[0.937s] -- Found JSONCPP: TRUE  
+[0.940s] -- Checking for module 'libzip'
+[0.948s] --   Found libzip, version 1.5.1
+[0.968s] -- Found ZIP: TRUE  
+[0.968s] -- Looking for ignition-common3 -- found version 3.14.2
+[0.968s] -- Looking for ignition-math6 -- found version 6.15.1
+[0.969s] -- Looking for ignition-msgs5 -- found version 5.10.0
+[0.975s] CMake Error at CMakeLists.txt:24 (find_package):
+[0.975s]   By not providing "Findgazebo_ros_pkgs.cmake" in CMAKE_MODULE_PATH this
+[0.975s]   project has asked CMake to find a package configuration file provided by
+[0.976s]   "gazebo_ros_pkgs", but CMake did not find one.
+[0.976s] 
+[0.976s]   Could not find a package configuration file provided by "gazebo_ros_pkgs"
+[0.976s]   with any of the following names:
+[0.976s] 
+[0.976s]     gazebo_ros_pkgsConfig.cmake
+[0.976s]     gazebo_ros_pkgs-config.cmake
+[0.976s] 
+[0.976s]   Add the installation prefix of "gazebo_ros_pkgs" to CMAKE_PREFIX_PATH or
+[0.976s]   set "gazebo_ros_pkgs_DIR" to a directory containing one of the above files.
+[0.976s]   If "gazebo_ros_pkgs" provides a separate development package or SDK, be
+[0.976s]   sure it has been installed.
+[0.976s] 
+[0.976s] 
+[0.976s] -- Configuring incomplete, errors occurred!
+[0.976s] See also "/home/ychen921/project3_ws/build/turtlebot3_project3/CMakeFiles/CMakeOutput.log".
+[0.976s] See also "/home/ychen921/project3_ws/build/turtlebot3_project3/CMakeFiles/CMakeError.log".
+[0.981s] Invoked command in '/home/ychen921/project3_ws/build/turtlebot3_project3' returned '1': CMAKE_PREFIX_PATH=/opt/ros/galactic CONDA_PROMPT_MODIFIER=(base) /usr/bin/cmake /home/ychen921/project3_ws/src/turtlebot3_project3 -DCMAKE_INSTALL_PREFIX=/home/ychen921/project3_ws/install/turtlebot3_project3
