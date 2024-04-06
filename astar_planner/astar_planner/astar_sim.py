@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 
-# import rclpy
-# from rclpy.node import Node
-# from geometry_msgs.msg import Twist
-# import time
-# from pynput import keyboard
 import argparse
 import numpy as np
 import heapq
@@ -19,42 +14,6 @@ class Turtlebot3Waffle:
     wheel_radius = 33
     wheel_distance = 287
     robot_radius = 220
-
-# class velocity_publisher(Node):
-#     def __init__(self, f, action_list):
-#         super().__init__('astar_planning_node')
-#         self.timer_period = f
-#         self.cmd_vel_pub = self.create_publisher(Twist,'/cmd_vel', 10)
-#         self.timer = self.create_timer(self.timer_period, self.timer_callback)
-#         self.i = 0
-#         self.action_list = action_list
-        
-
-#     def timer_callback(self):
-#         msg = Twist()
-
-#         if self.i >= len(self.action_list):
-#             msg.linear.x = 0.0
-#             msg.angular.z = 0.0
-#             return
-        
-#         a:Action = self.action_list[self.i]
-        
-#         ur = a.v_r
-#         ul = a.v_l
-
-#         linear_vel = 0.5 * (ur+ul)
-#         ang_vel = radius_wheel_tb * (ur-ul) / D_tb
-
-#         msg.linear.x = linear_vel
-#         msg.angular.z = ang_vel
-
-#         # publish
-
-#         self.i+=1
-        
-#         self.publisher_.publish(msg)
-      
 
 class Action:
     
@@ -1355,13 +1314,12 @@ class Astar:
         # plt.pause(0.2)
         # plt.pause(0.0001)
 
-    def visualize_path(self):
+    def visualize_path(self, ind=None):
         """visualize the result of backtrack
         """
         nodes = self.path_to_goal
-        scatter_pts_x = []
-        scatter_pts_y = []
-        for node in nodes:
+
+        def plot_data(node):
             x,y = node[0]
             ori = node[1]
             a:Action = node[2]
@@ -1369,12 +1327,15 @@ class Astar:
                 plt_pts = a.get_plot_pts(init_pose=(x,y,ori))
                 plt.plot(plt_pts[:,0],plt_pts[:,1],color='r',
                         linewidth=1.5)
-            
-            scatter_pts_x.append(x)
-            scatter_pts_y.append(y)
-
-        plt.scatter(scatter_pts_x,scatter_pts_y,s=6,c='r')
-        plt.pause(5.0)
+            plt.scatter(x,y,s=10,c='r')
+        if ind is not None:
+            # plot individual step
+            plot_data(nodes[ind])
+        else:
+            for node in nodes:
+                plot_data(node)
+            plt.pause(3.0)
+        
         # add some more static frames with the robot at goal
         for _ in range(40):
             
@@ -1478,9 +1439,9 @@ class Astar:
             if i%50==0:
                 self.visualize_search()
         
-        if self.goal_reached:
-            # show the path to the goal
-            self.visualize_path()
+        # if self.goal_reached:
+        #     # show the path to the goal
+        #     self.visualize_path()
             
     def backtrack(self, goal_coord : State):
         """backtrack to get the path to the goal from the initial position
@@ -1497,6 +1458,15 @@ class Astar:
             
         self.path_to_goal.append([c.coord,c.orientation,action])
         self.path_to_goal.reverse()
+
+    def retrieve_actions(self):
+        """retrieve list of actions after backtrack
+        """
+        out = []
+        for data in self.path_to_goal:
+            if data[2]:
+                out.append(data[2])
+        return out
 
 def ask_for_coord(map:Map, mode="initial"):
     """function for asking user input of init or goal coordinate; if user input
